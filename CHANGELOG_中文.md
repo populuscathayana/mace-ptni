@@ -2,6 +2,17 @@
 
 本项目采用 SemVer 版本号。每次代码或文档工作流发生实质修改时，同步更新 `VERSION` 和本文件。
 
+## v0.1.4 - 2026-06-18
+
+### 新增
+
+- `train_mace_ptni_ft.sh` 和 `train_mace_ptni_scratch.sh` 支持显式命令行参数 `--epochs` / `--max-num-epochs`。
+- 两个训练入口支持显式早停参数 `--patience` / `--early-stop-patience`，例如 `--patience 10` 表示 validation 10 个 epoch 无改善后早停。
+
+### 文档
+
+- 更新训练说明，加入 fine-tune 和 scratch 的 epoch/early-stop 示例。
+
 ## v0.1.3 - 2026-06-18
 
 ### 调整

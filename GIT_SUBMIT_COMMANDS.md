@@ -7,11 +7,12 @@
 本地仓库已经完成或即将完成：
 
 - 分支：`main`
-- 当前计划版本：`v0.1.3`
+- 当前计划版本：`v0.1.4`
 - `v0.1.0`：模块化 PtNi MACE workflow + GitHub Pages 基础部署
 - `v0.1.1`：新增 Git/GitHub 维护教程，并忽略旧 `outputs/` 本地备份
 - `v0.1.2`：扩展新增文件/小型数据上传教程和回档教程，清理本地可再生成缓存
 - `v0.1.3`：精简 Git/GitHub 维护教程，只保留日常提交和新增文件上传流程
+- `v0.1.4`：训练入口支持显式 `--epochs` 和 `--patience` 参数
 - 远端：`https://github.com/populuscathayana/mace-ptni.git`
 
 远端目前仍只有 GitHub 初始化的 `LICENSE` 提交。Codex 侧 push 超时；用户侧已确认 HTTPS 账号密码推送失败：
@@ -52,6 +53,7 @@ git push origin v0.1.0
 git push origin v0.1.1
 git push origin v0.1.2
 git push origin v0.1.3
+git push origin v0.1.4
 ```
 
 如果 tag 已经存在但指向不一致，再执行：
@@ -61,6 +63,7 @@ git push -f origin v0.1.0
 git push -f origin v0.1.1
 git push -f origin v0.1.2
 git push -f origin v0.1.3
+git push -f origin v0.1.4
 ```
 
 ## 推荐方式：SSH 推送
@@ -123,6 +126,7 @@ git push origin v0.1.0
 git push origin v0.1.1
 git push origin v0.1.2
 git push origin v0.1.3
+git push origin v0.1.4
 ```
 
 ## 备用方式：HTTPS + Personal Access Token
@@ -153,6 +157,7 @@ git push origin v0.1.0
 git push origin v0.1.1
 git push origin v0.1.2
 git push origin v0.1.3
+git push origin v0.1.4
 ```
 
 如果你使用的是 fine-grained token，请给 `populuscathayana/mace-ptni` 仓库至少开启：
@@ -177,6 +182,7 @@ git push origin v0.1.0
 git push origin v0.1.1
 git push origin v0.1.2
 git push origin v0.1.3
+git push origin v0.1.4
 ```
 
 ## 推送后检查
@@ -187,6 +193,7 @@ git ls-remote --tags origin v0.1.0
 git ls-remote --tags origin v0.1.1
 git ls-remote --tags origin v0.1.2
 git ls-remote --tags origin v0.1.3
+git ls-remote --tags origin v0.1.4
 ```
 
 远端 `main` 应指向本地最新提交或其后续提交。

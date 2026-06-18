@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  bash ptni_mace_workflow/training/train_mace_ptni_ft.sh [--workspace DIR] [--dataset NAME] [--run-name NAME]
+  bash ptni_mace_workflow/training/train_mace_ptni_ft.sh [--workspace DIR] [--dataset NAME] [--run-name NAME] [--epochs N] [--patience N]
 
 Legacy positional form is also accepted:
   bash ptni_mace_workflow/training/train_mace_ptni_ft.sh DATA_DIR RUN_NAME
@@ -41,6 +41,8 @@ while [[ $# -gt 0 ]]; do
     --device) DEVICE="$2"; shift 2 ;;
     --seed) SEED="$2"; shift 2 ;;
     --foundation-model) FOUNDATION_MODEL="$2"; shift 2 ;;
+    --max-num-epochs|--epochs) MAX_NUM_EPOCHS="$2"; shift 2 ;;
+    --patience|--early-stop-patience) PATIENCE="$2"; shift 2 ;;
     --help|-h) usage; exit 0 ;;
     *) POSITIONAL+=("$1"); shift ;;
   esac
