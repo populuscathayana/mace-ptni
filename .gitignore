@@ -22,6 +22,7 @@ desktop.ini
 *.swo
 
 # Local runtime workspaces and generated outputs
+outputs/
 mace_workspace/
 work/
 logs/

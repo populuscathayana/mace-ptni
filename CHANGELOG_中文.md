@@ -2,6 +2,18 @@
 
 本项目采用 SemVer 版本号。每次代码或文档工作流发生实质修改时，同步更新 `VERSION` 和本文件。
 
+## v0.1.1 - 2026-06-18
+
+### 新增
+
+- 新增 `07_Git与GitHub维护教程.md`，面向 Git 新手说明日常修改、暂存、提交、tag、push、GitHub Pages 和认证方式。
+- 将 Git 维护教程加入网页文档目录，GitHub Pages 自动部署后可在线查看。
+- 新增并维护 `GIT_SUBMIT_COMMANDS.md`，作为 Codex 无法直接 push 时的本地提交/推送指令文件。
+
+### 调整
+
+- `.gitignore` 新增 `outputs/`，旧输出目录作为本地备份，不再干扰 `git status`。
+
 ## v0.1.0 - 2026-06-18
 
 ### 新增

@@ -61,6 +61,12 @@ DOCS = [
         "title": "从旧 outputs 迁移",
         "subtitle": "旧脚本保留、规范数据迁移和新旧路径对照",
     },
+    {
+        "id": "git-maintenance",
+        "source": "ptni_mace_workflow/docs/07_Git与GitHub维护教程.md",
+        "title": "Git 与 GitHub 维护教程",
+        "subtitle": "面向新手的提交、版本号、tag、push 和 Pages 发布流程",
+    },
 ]
 
 
