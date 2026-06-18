@@ -1,0 +1,80 @@
+# Python cache and local envs
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+*.egg-info/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local runtime workspaces and generated outputs
+mace_workspace/
+work/
+logs/
+results/
+checkpoints/
+wandb/
+backup_before_resume_*/
+
+# Generated static site artifacts
+_site/
+site/
+dist/
+build/
+
+# MACE / ML model artifacts
+*.model
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# Large atomistic / VASP / trajectory data
+*.extxyz
+*.xyz
+*.traj
+*.db
+OUTCAR*
+POTCAR*
+WAVECAR*
+CHGCAR*
+CHG*
+AECCAR*
+vasprun.xml*
+XDATCAR*
+PROCAR*
+DOSCAR*
+EIGENVAL*
+OSZICAR*
+REPORT
+IBZKPT
+PCDAT
+
+# Archives and compressed packages
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+*.rar
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.log
