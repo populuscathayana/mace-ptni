@@ -64,6 +64,68 @@ git diff
 git status --ignored --short
 ```
 
+## 新增文件或数据怎么上传
+
+先判断这个新增内容属于哪一类。
+
+应该上传到 GitHub 的内容：
+
+```text
+脚本
+Markdown 文档
+GitHub Actions 配置
+小型示例输入
+小型测试 fixture
+轻量 CSV/JSON manifest
+```
+
+不应该上传到 GitHub 的内容：
+
+```text
+完整训练集
+大 extxyz
+OUTCAR/POTCAR/WAVECAR/CHGCAR
+MACE .model/.pt
+训练 checkpoint
+benchmark 运行结果
+W&B 本地日志
+```
+
+如果新增的是普通代码或文档：
+
+```bash
+git add path/to/file
+```
+
+如果新增的是一个目录：
+
+```bash
+git add path/to/directory
+```
+
+如果新增的是小型示例数据，但扩展名被 `.gitignore` 忽略，例如一个很小的 `example.extxyz`，先确认它真的适合公开上传：
+
+```bash
+du -h path/to/example.extxyz
+```
+
+然后可以强制加入：
+
+```bash
+git add -f path/to/example.extxyz
+```
+
+只对小型、脱敏、可公开的数据这样做。不要对 `work/`、`mace_workspace/`、`checkpoints/` 做 `git add -f`。
+
+如果某一类小文件以后经常要上传，优先修改 `.gitignore` 增加白名单，而不是每次都 `git add -f`。例如：
+
+```gitignore
+*.extxyz
+!ptni_mace_workflow/examples/**/*.extxyz
+```
+
+这样只有 `ptni_mace_workflow/examples/` 下面的 extxyz 示例会被允许提交。
+
 ## 提交前检查
 
 本项目推荐至少运行：
@@ -86,6 +148,68 @@ git diff --cached --name-only | grep -E '\.(model|pt|pth|ckpt|extxyz|traj|db)$|^
 ```
 
 如果这条命令没有输出，通常就是安全的。
+
+## 回档和撤销
+
+先看历史：
+
+```bash
+git log --oneline --decorate --graph -10
+```
+
+只临时查看旧版本，不改变当前文件：
+
+```bash
+git show v0.1.0:path/to/file
+```
+
+把某个文件恢复到上一个提交的版本：
+
+```bash
+git restore path/to/file
+```
+
+把某个文件恢复到指定版本：
+
+```bash
+git restore --source v0.1.0 -- path/to/file
+```
+
+恢复后需要提交这个回档：
+
+```bash
+git add path/to/file
+git commit -m "v0.1.2: restore path/to/file from v0.1.0"
+```
+
+如果刚刚 commit 了但还没有 push，想修改最后一次 commit：
+
+```bash
+git add changed_file
+git commit --amend
+```
+
+如果已经 push 了，不建议改历史。更安全的做法是新建一个“回退提交”：
+
+```bash
+git revert <commit_id>
+```
+
+例如：
+
+```bash
+git revert 541fd3a
+```
+
+这会生成一个新的 commit，用来撤销那个旧 commit 的改动。它适合已经公开 push 的版本。
+
+谨慎使用：
+
+```bash
+git reset --hard <commit_id>
+```
+
+这会丢弃当前工作区改动，并把分支强行移动到旧提交。除非明确要丢弃本地修改，否则不要用。
 
 ## 提交代码
 
