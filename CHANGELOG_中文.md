@@ -2,6 +2,20 @@
 
 本项目采用 SemVer 版本号。每次代码或文档工作流发生实质修改时，同步更新 `VERSION` 和本文件。
 
+## v0.2.0 - 2026-06-22
+
+### 新增
+
+- 新增 `distance_scan` benchmark，用于扫描 PtNi slab 顶部唯一可动原子沿第三晶格矢量方向远离表面时的 MACE 单点能稳定性。
+- 新脚本 `ptni_slab_mobile_atom_distance_scan_mace.py` 支持自动识别 selective-dynamics 中唯一可动原子、加厚真空、输出绝对位移和相对层间距两类横坐标。
+- `run_benchmark_suite.sh` 新增 `--suite distance_scan`，默认读取 `mace_workspace/inputs/PtNi-diffusion/111/POSCAR` 和 `100/POSCAR`。
+- distance scan 输出 CSV、Markdown、PNG 和本地 HTML 报告。
+
+### 文档
+
+- 更新外推任务验证说明，加入 PtNi slab 距离稳定性 benchmark 的输入、参数、输出和判断方式。
+- 更新网页文档构建元信息和总览文档。
+
 ## v0.1.4 - 2026-06-18
 
 ### 新增

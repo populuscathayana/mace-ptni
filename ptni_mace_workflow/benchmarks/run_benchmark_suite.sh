@@ -7,7 +7,7 @@ Usage:
   bash ptni_mace_workflow/benchmarks/run_benchmark_suite.sh \
     --workspace mace_workspace \
     --model-tag ft_best_loss \
-    --suite lattice,strained_neb,pt111_pes,np_singlepoint,np_relax_neb
+    --suite lattice,strained_neb,pt111_pes,distance_scan,np_singlepoint,np_relax_neb
 
 Options:
   --workspace DIR       Runtime workspace. Default: MACE_WORKSPACE or mace_workspace.
@@ -19,7 +19,7 @@ Options:
   --smoke               Reduce selected tasks to tiny sanity checks where supported.
 
 Suite names:
-  lattice, strained_neb, pt111_pes, np_singlepoint, np_relax_neb
+  lattice, strained_neb, pt111_pes, distance_scan, np_singlepoint, np_relax_neb
 EOF
 }
 
@@ -88,6 +88,11 @@ PT111_OPTIMIZER="${PT111_OPTIMIZER:-BFGS}"
 PT111_FMAX="${PT111_FMAX:-1e-4}"
 PT111_STEPS="${PT111_STEPS:-1000}"
 PT111_RELAX_MODE="${PT111_RELAX_MODE:-force}"
+DISTANCE_SCAN="${DISTANCE_SCAN:-0:5:0.05}"
+DISTANCE_SCAN_VACUUM="${DISTANCE_SCAN_VACUUM:-20}"
+DISTANCE_SCAN_SURFACES="${DISTANCE_SCAN_SURFACES:-111 100}"
+DISTANCE_SCAN_INPUT_DIR="${DISTANCE_SCAN_INPUT_DIR:-${WORKSPACE}/inputs/PtNi-diffusion}"
+DISTANCE_SCAN_WRITE_STRUCTURES="${DISTANCE_SCAN_WRITE_STRUCTURES:-0}"
 
 if [[ "${SMOKE}" == "1" ]]; then
   PT_SCAN="${PT_SCAN_SMOKE:-3.95:4.05:0.05}"
@@ -98,6 +103,7 @@ if [[ "${SMOKE}" == "1" ]]; then
   NEB_STEPS="${NEB_STEPS_SMOKE:-1}"
   PT111_PATTERN="${PT111_PATTERN_SMOKE:-hex_point_000/POSCAR}"
   PT111_STEPS="${PT111_STEPS_SMOKE:-1}"
+  DISTANCE_SCAN="${DISTANCE_SCAN_SMOKE:-0:1:0.5}"
   export LIMIT="${LIMIT:-3}"
   export MAX_GROUPS="${MAX_GROUPS:-1}"
 fi
@@ -226,6 +232,37 @@ if contains_suite pt111_pes; then
       --shift-shared-min-to-zero
   fi
   record_manifest pt111_pes "${OUT_DIR}"
+fi
+
+if contains_suite distance_scan; then
+  OUT_DIR="${WORKSPACE}/runs/benchmarks/distance_scan/${MODEL_TAG}"
+  echo
+  echo "=== distance_scan ==="
+  for SURFACE in ${DISTANCE_SCAN_SURFACES}; do
+    POSCAR="${DISTANCE_SCAN_INPUT_DIR}/${SURFACE}/POSCAR"
+    if [[ ! -f "${POSCAR}" ]]; then
+      echo "Missing distance-scan POSCAR: ${POSCAR}" >&2
+      exit 2
+    fi
+    STRUCTURE_ARGS=()
+    if [[ "${DISTANCE_SCAN_WRITE_STRUCTURES}" == "1" ]]; then
+      STRUCTURE_ARGS=(--write-structures)
+    fi
+    python "${SCRIPT_DIR}/distance_scan/ptni_slab_mobile_atom_distance_scan_mace.py" \
+      --poscar "${POSCAR}" \
+      --surface "${SURFACE}" \
+      --model "${MODEL_PATH}" \
+      --scan="${DISTANCE_SCAN}" \
+      --vacuum "${DISTANCE_SCAN_VACUUM}" \
+      --device "${DEVICE}" \
+      --default-dtype "${DEFAULT_DTYPE}" \
+      --out-dir "${OUT_DIR}/${SURFACE}" \
+      --name "${MODEL_TAG}_${SURFACE}_mobile_atom_distance" \
+      --plot \
+      --html \
+      "${STRUCTURE_ARGS[@]}"
+  done
+  record_manifest distance_scan "${OUT_DIR}"
 fi
 
 if contains_suite np_singlepoint; then

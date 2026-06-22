@@ -47,7 +47,7 @@ DOCS = [
         "id": "benchmarks",
         "source": "ptni_mace_workflow/docs/04_外推任务验证.md",
         "title": "外推任务验证",
-        "subtitle": "晶格、应变 NEB、Pt111 PES、NP 单点和 NP relax+NEB",
+        "subtitle": "晶格、应变 NEB、Pt111 PES、距离稳定性、NP 单点和 NP relax+NEB",
     },
     {
         "id": "workspace",

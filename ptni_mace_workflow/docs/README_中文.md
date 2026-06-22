@@ -12,7 +12,7 @@ OUTCAR
   -> fine-tune 或 scratch 训练
   -> best-loss .model 导出
   -> train/valid/test 误差检验
-  -> 晶格、NEB、Pt111 PES、NP 外推 benchmark
+  -> 晶格、NEB、Pt111 PES、距离稳定性、NP 外推 benchmark
 ```
 
 ## 四个模块
@@ -22,7 +22,7 @@ OUTCAR
 | 前处理 | `ptni_mace_workflow/preprocess/` | OUTCAR 收集、去重、POTCAR 筛选、extxyz 转换、数据集切分、NP package 准备 |
 | 训练 | `ptni_mace_workflow/training/` | MACE fine-tune、scratch、训练监控、best checkpoint 转 `.model` |
 | 误差检验 | `ptni_mace_workflow/evaluation/` | 低显存预测、train/valid/test 打分、离群点、parity density 图 |
-| 外推验证 | `ptni_mace_workflow/benchmarks/` | Pt/Ni 晶格、应变 NEB、Pt111 势能面、NP 单点、NP relax+NEB |
+| 外推验证 | `ptni_mace_workflow/benchmarks/` | Pt/Ni 晶格、应变 NEB、Pt111 势能面、slab 距离稳定性、NP 单点、NP relax+NEB |
 
 ## 统一运行根目录
 
@@ -82,7 +82,7 @@ bash ptni_mace_workflow/evaluation/evaluate_splits_lowmem.sh \
 bash ptni_mace_workflow/benchmarks/run_benchmark_suite.sh \
   --workspace mace_workspace \
   --model-tag ft_best_loss \
-  --suite lattice,strained_neb,pt111_pes,np_singlepoint,np_relax_neb \
+  --suite lattice,strained_neb,pt111_pes,distance_scan,np_singlepoint,np_relax_neb \
   --device cuda
 ```
 

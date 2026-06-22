@@ -1,27 +1,30 @@
 # Git 提交 / 推送指令
 
-更新时间：2026-06-18
+更新时间：2026-06-22
 
 ## 当前状态
 
 本地仓库已经完成或即将完成：
 
 - 分支：`main`
-- 当前计划版本：`v0.1.4`
+- 当前计划版本：`v0.2.0`
 - `v0.1.0`：模块化 PtNi MACE workflow + GitHub Pages 基础部署
 - `v0.1.1`：新增 Git/GitHub 维护教程，并忽略旧 `outputs/` 本地备份
 - `v0.1.2`：扩展新增文件/小型数据上传教程和回档教程，清理本地可再生成缓存
 - `v0.1.3`：精简 Git/GitHub 维护教程，只保留日常提交和新增文件上传流程
 - `v0.1.4`：训练入口支持显式 `--epochs` 和 `--patience` 参数
-- 远端：`https://github.com/populuscathayana/mace-ptni.git`
+- `v0.2.0`：新增 PtNi slab 顶部可动原子距离稳定性 benchmark
+- 远端：`git@github.com:populuscathayana/mace-ptni.git`
+- 本地最新提交：`v0.2.0: add slab distance scan benchmark`
 
-远端目前仍只有 GitHub 初始化的 `LICENSE` 提交。Codex 侧 push 超时；用户侧已确认 HTTPS 账号密码推送失败：
+当前 Codex 侧推送失败原因：
 
 ```text
-remote: Invalid username or token. Password authentication is not supported for Git operations.
+Host key verification failed.
+fatal: Could not read from remote repository.
 ```
 
-GitHub 不再支持把账号密码当作 Git HTTPS 密码使用。需要改用 SSH、GitHub CLI，或在 HTTPS 密码位置粘贴 Personal Access Token。
+这通常表示当前 shell 的 `~/.ssh/known_hosts` 里还没有 GitHub 的 host key。你可以在自己的 WSL/PowerShell 中先执行一次 `ssh -T git@github.com`，按提示输入 `yes` 信任 GitHub，然后再 push。
 
 ## 推荐推送命令
 
@@ -49,21 +52,13 @@ git remote -v
 
 ```bash
 git push -u origin main
-git push origin v0.1.0
-git push origin v0.1.1
-git push origin v0.1.2
-git push origin v0.1.3
-git push origin v0.1.4
+git push origin v0.2.0
 ```
 
-如果 tag 已经存在但指向不一致，再执行：
+如果 GitHub 提示 `v0.2.0` tag 已存在但指向不一致，再执行：
 
 ```bash
-git push -f origin v0.1.0
-git push -f origin v0.1.1
-git push -f origin v0.1.2
-git push -f origin v0.1.3
-git push -f origin v0.1.4
+git push -f origin v0.2.0
 ```
 
 ## 推荐方式：SSH 推送
@@ -122,11 +117,7 @@ Hi populuscathayana! You've successfully authenticated, but GitHub does not prov
 ```bash
 git remote set-url origin git@github.com:populuscathayana/mace-ptni.git
 git push -u origin main
-git push origin v0.1.0
-git push origin v0.1.1
-git push origin v0.1.2
-git push origin v0.1.3
-git push origin v0.1.4
+git push origin v0.2.0
 ```
 
 ## 备用方式：HTTPS + Personal Access Token
@@ -153,11 +144,7 @@ workflow
 ```bash
 git remote set-url origin https://github.com/populuscathayana/mace-ptni.git
 git push -u origin main
-git push origin v0.1.0
-git push origin v0.1.1
-git push origin v0.1.2
-git push origin v0.1.3
-git push origin v0.1.4
+git push origin v0.2.0
 ```
 
 如果你使用的是 fine-grained token，请给 `populuscathayana/mace-ptni` 仓库至少开启：
@@ -178,22 +165,14 @@ Actions 或 Workflows: Read and write
 gh auth login
 gh auth setup-git
 git push -u origin main
-git push origin v0.1.0
-git push origin v0.1.1
-git push origin v0.1.2
-git push origin v0.1.3
-git push origin v0.1.4
+git push origin v0.2.0
 ```
 
 ## 推送后检查
 
 ```bash
 git ls-remote --heads origin main
-git ls-remote --tags origin v0.1.0
-git ls-remote --tags origin v0.1.1
-git ls-remote --tags origin v0.1.2
-git ls-remote --tags origin v0.1.3
-git ls-remote --tags origin v0.1.4
+git ls-remote --tags origin v0.2.0
 ```
 
 远端 `main` 应指向本地最新提交或其后续提交。
