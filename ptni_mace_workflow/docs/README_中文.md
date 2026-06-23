@@ -88,7 +88,21 @@ bash ptni_mace_workflow/benchmarks/run_benchmark_suite.sh \
   --device cuda
 ```
 
-vacancy-mediated MCMD smoke：
+vacancy-mediated MCMD 初始位点准备：
+
+```bash
+python -m ptni_mace_workflow.mcmd.run_vacancy_mcmd \
+  --workspace mace_workspace \
+  --input mace_workspace/inputs/mcmd/POSCAR \
+  --run-name np_vacancy_mcmd_smoke \
+  --prepare-sites-only \
+  --site-output vasp \
+  --site-mode np \
+  --site-np-boundary one-shell \
+  --overwrite
+```
+
+检查 `site_reports/step_0000_with_He.vasp` 后，显式指定 vacancy 运行：
 
 ```bash
 python -m ptni_mace_workflow.mcmd.run_vacancy_mcmd \
@@ -96,7 +110,7 @@ python -m ptni_mace_workflow.mcmd.run_vacancy_mcmd \
   --input mace_workspace/inputs/mcmd/POSCAR \
   --model-tag ft_best_loss \
   --run-name np_vacancy_mcmd_smoke \
-  --auto-vacancy highest-score \
+  --vacancy-site-index 0 \
   --mc-steps 1 \
   --md-steps 0 \
   --neb-images 3 \

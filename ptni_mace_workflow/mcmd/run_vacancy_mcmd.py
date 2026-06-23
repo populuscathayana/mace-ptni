@@ -95,7 +95,11 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--vacancy-site-index", type=int, default=None, help="Zero-based index in the reconstructed site list.")
     parser.add_argument("--vacancy-cartesian", type=float, nargs=3, default=None, metavar=("X", "Y", "Z"))
-    parser.add_argument("--auto-vacancy", choices=["none", "highest-score"], default="none")
+    parser.add_argument(
+        "--prepare-sites-only",
+        action="store_true",
+        help="Only write step_0000 close-packed site files, then stop before loading MACE or running MCMD.",
+    )
     parser.add_argument("--vacancy-match-radius", type=float, default=1.0)
 
     parser.add_argument("--temperature", type=float, default=800.0)
@@ -140,12 +144,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pbc-cross-tol", type=float, default=0.25)
     parser.add_argument("--pbc", choices=["from-input", "true", "false"], default="from-input")
     parser.add_argument("--wrap-scaled", action="store_true")
-    parser.add_argument(
-        "--allow-previous-vacancy-fallback",
-        action="store_true",
-        help="Continue with the previous vacancy Cartesian coordinate if no reconstructed site matches.",
-    )
-
     parser.add_argument("--site-output", choices=["full", "vasp", "none"], default="full")
     parser.add_argument("--site-mode", choices=["auto", "np", "slab", "bulk"], default="auto")
     parser.add_argument("--site-nn-cutoff", type=float, default=3.2)
@@ -247,25 +245,13 @@ def select_result(results: list[NebResult], rates: np.ndarray, rng: np.random.Ge
 def main() -> int:
     args = parse_args()
     workspace = ensure_workspace_layout(args.workspace)
-    model = resolve_model(args.model, args.model_tag, workspace)
-    reject_checkpoint(model)
     input_path = args.input.resolve()
     if not input_path.is_file():
         raise SystemExit(f"input structure not found: {input_path}")
-    if not model.is_file():
-        raise SystemExit(f"model not found: {model}")
     if args.mc_steps < 0:
         raise SystemExit("--mc-steps must be >= 0")
     if args.md_steps < 0:
         raise SystemExit("--md-steps must be >= 0")
-
-    from mace.calculators import MACECalculator
-
-    calc = MACECalculator(
-        model_paths=str(model),
-        device=args.device,
-        default_dtype=args.default_dtype,
-    )
 
     run_dir = mcmd_run_dir(args.run_name, workspace)
     if run_dir.exists() and (run_dir / "mcmd_steps.csv").exists() and not args.overwrite:
@@ -283,6 +269,42 @@ def main() -> int:
     summary_md = run_dir / "summary.md"
 
     atoms = apply_geometry_options(read_atoms(input_path, args.input_format), args)
+
+    needs_initial_vacancy = args.vacancy_site_index is None and args.vacancy_cartesian is None
+    if args.prepare_sites_only or needs_initial_vacancy:
+        reconstruction = reconstruct_sites_from_atoms(atoms, site_dir, "step_0000", args)
+        manifest = run_manifest_base("mcmd_site_prepare", args.run_name, workspace)
+        manifest.update(
+            {
+                "input": str(input_path),
+                "status": "needs_vacancy_selection",
+                "site_count": len(reconstruction.sites),
+                "site_report_vasp": str(reconstruction.he_poscar_path or ""),
+                "site_summary_json": str(reconstruction.summary_path or ""),
+                "message": "Inspect step_0000_with_He.vasp and rerun with --vacancy-site-index or --vacancy-cartesian.",
+            }
+        )
+        write_json(run_dir / "run_manifest.json", manifest)
+        print(f"Prepared initial close-packed sites: {reconstruction.he_poscar_path}")
+        print(f"Site count: {len(reconstruction.sites)}")
+        print("Rerun with --vacancy-site-index INDEX or --vacancy-cartesian X Y Z to start MCMD.")
+        if args.prepare_sites_only:
+            return 0
+        raise SystemExit("Initial vacancy is required; inspect step_0000_with_He.vasp and rerun with an explicit vacancy.")
+
+    model = resolve_model(args.model, args.model_tag, workspace)
+    reject_checkpoint(model)
+    if not model.is_file():
+        raise SystemExit(f"model not found: {model}")
+
+    from mace.calculators import MACECalculator
+
+    calc = MACECalculator(
+        model_paths=str(model),
+        device=args.device,
+        default_dtype=args.default_dtype,
+    )
+
     initial_energy, initial_fmax = evaluate_structure(atoms, calc)
     write_state(trajectory, atoms, 0, "initial", initial_energy, initial_fmax)
 
@@ -350,7 +372,7 @@ def main() -> int:
                 reconstruction,
                 args.vacancy_match_radius,
             )
-            if not matched and not args.allow_previous_vacancy_fallback:
+            if not matched or matched_vacancy is None:
                 row = {
                     "mcmd_step": step,
                     "status": "stopped_vacancy_not_matched",
@@ -366,7 +388,7 @@ def main() -> int:
                 step_rows.append(row)
                 break
             current_vacancy = matched_vacancy
-            vacancy_source = "matched_reconstructed_site" if matched else "previous_cartesian_fallback"
+            vacancy_source = "matched_reconstructed_site"
 
         d_nn = float(reconstruction.summary.get("d_nn_estimate_A") or estimate_nn_from_atoms(current_atoms))
         all_events = generate_hop_events(

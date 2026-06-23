@@ -2,6 +2,14 @@
 
 本项目采用 SemVer 版本号。每次代码或文档工作流发生实质修改时，同步更新 `VERSION` 和本文件。
 
+## v0.3.3 - 2026-06-24
+
+### 调整
+
+- 删除 MCMD 初始 vacancy 自动选择逻辑；程序不再自动选排序第一的 close-packed site。
+- 未显式指定 vacancy 时，程序只生成 `step_0000_with_He.vasp` 并停止，要求人工确认后用 `--vacancy-site-index` 或 `--vacancy-cartesian` 继续。
+- 删除 tracked vacancy 匹配失败时的旧坐标 fallback；匹配失败会停止并记录原因。
+
 ## v0.3.2 - 2026-06-24
 
 ### 调整

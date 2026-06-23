@@ -220,46 +220,23 @@ def select_initial_vacancy(
             )
         return reconstruction.sites[index], "user_site_index0"
 
-    if args.auto_vacancy == "highest-score":
-        if not reconstruction.sites:
-            raise ValueError("auto vacancy selection requested, but no reconstructed sites were kept")
-        return reconstruction.sites[0], "auto_highest_score"
-
-    raise ValueError("Provide --vacancy-site-index, --vacancy-cartesian, or --auto-vacancy highest-score.")
+    raise ValueError("Provide --vacancy-site-index or --vacancy-cartesian after inspecting step_0000_with_He.vasp.")
 
 
 def match_vacancy_to_reconstructed_site(
-    previous_cartesian: np.ndarray,
+    tracked_cartesian: np.ndarray,
     reconstruction: SiteReconstruction,
     max_distance: float,
-) -> tuple[VacancySite, float, bool]:
+) -> tuple[VacancySite | None, float, bool]:
     """Match the tracked vacancy to the nearest newly reconstructed site."""
 
     if not reconstruction.sites:
-        fallback = VacancySite(
-            site_index0=-1,
-            source_index=-1,
-            cartesian=np.asarray(previous_cartesian, dtype=float),
-            fractional=None,
-            coordination=None,
-            score=None,
-            raw={"source": "previous_cartesian_no_reconstructed_sites"},
-        )
-        return fallback, float("nan"), False
+        return None, float("nan"), False
 
-    distances = [float(np.linalg.norm(site.cartesian - previous_cartesian)) for site in reconstruction.sites]
+    distances = [float(np.linalg.norm(site.cartesian - tracked_cartesian)) for site in reconstruction.sites]
     best_index = int(np.argmin(distances))
     best_distance = distances[best_index]
     if best_distance <= max_distance:
         return reconstruction.sites[best_index], best_distance, True
 
-    fallback = VacancySite(
-        site_index0=-1,
-        source_index=-1,
-        cartesian=np.asarray(previous_cartesian, dtype=float),
-        fractional=None,
-        coordination=None,
-        score=None,
-        raw={"source": "previous_cartesian_match_failed", "nearest_site_distance_A": best_distance},
-    )
-    return fallback, best_distance, False
+    return None, best_distance, False
