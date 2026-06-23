@@ -46,6 +46,14 @@ python -m ptni_mace_workflow.mcmd.run_vacancy_mcmd \
 
 ## 空位定义
 
+MCMD 使用的是 close-packed 壳层 lattice-site 逻辑，不是只搜索颗粒内部 vacancy。对于 NP，默认边界策略是：
+
+```bash
+--site-np-boundary one-shell
+```
+
+这会保留壳层上的 close-packed 候选点；真正的内部空位也会包含在这个候选集合中。若只想找 hull 内部空位，才使用 `--site-np-boundary strict-hull`。
+
 推荐显式指定 vacancy：
 
 | 参数 | 含义 |
@@ -72,6 +80,12 @@ new vacancy = atom_i old position
 | `--hop-shell-low` | `0.70` | hop 距离下限，乘以重构得到的 `d_nn` |
 | `--hop-shell-high` | `1.30` | hop 距离上限，乘以 `d_nn` |
 | `--max-events-per-step` | 空 | 每个 MC 步最多评估多少个候选事件 |
+
+若要采用“每一步只从邻位候选中随机抽一个试探点”的轻量 rKMC smoke 逻辑：
+
+```bash
+--event-order random --max-events-per-step 1
+```
 
 默认禁止跨周期边界 hop。若 direct 位移和 minimum-image 位移差异超过 `--pbc-cross-tol`，该事件会被跳过。只有确认插值路径合理时才建议使用：
 
@@ -128,6 +142,12 @@ rate = nu * exp(-Ea_forward / kBT)
 | `--md-timestep-fs` | `1.0` | MD 步长 |
 | `--md-friction-per-fs` | `0.01` | Langevin friction |
 
+若希望“每跑 1 步 MC 就 MD/relax 一下结构”，使用：
+
+```bash
+--md-position after --md-steps 20
+```
+
 LAMMPS 后端暂不实现。原因是不同机器上的 LAMMPS-MACE pair style、模型加载方式和单位制需要单独确认；当前原型先保证 ASE+MACE 可检查、可复现。
 
 ## 输出
@@ -154,10 +174,17 @@ mace_workspace/runs/mcmd/<run_name>/
 | `trajectory.extxyz` | 初始结构、MD frame 和 accepted MC state |
 | `site_reports/*_with_He.vasp` | 用 He 可视化的重构空位候选，不参与真实计算 |
 
+对于只想看每步结果和可选空位的紧凑输出，推荐：
+
+```bash
+--neb-output compact --site-output vasp
+```
+
+这样不会写出每个 NEB 事件的完整 extxyz 路径，只保留 `events.csv`、`mcmd_steps.csv`、`trajectory.extxyz` 和每步可选空位的 VASP 可视化文件。
+
 ## 注意事项
 
 - 这是 MCMD/KMC-like 原型，不声明物理时间已经达到严格 KMC 级别。
 - 初始 vacancy 推荐手动指定，避免把表面空隙或边界 artifact 当成迁移空位。
 - 默认不优化每个 hop 的端点，是为了保留 MD 热涨落；若要做 benchmark 风格势垒，可用 `--endpoint-relax-mode full`。
 - CI-NEB 的 climbing image 不是“不受力”，而是使用投影后的 NEB 力：沿路径方向爬升，垂直路径方向松弛。
-

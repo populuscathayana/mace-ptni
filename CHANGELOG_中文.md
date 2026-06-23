@@ -2,6 +2,13 @@
 
 本项目采用 SemVer 版本号。每次代码或文档工作流发生实质修改时，同步更新 `VERSION` 和本文件。
 
+## v0.3.1 - 2026-06-23
+
+### 调整
+
+- MCMD 的 NP site boundary 默认从 `strict-hull` 调整为 `one-shell`，使 vacancy 候选来自 close-packed 壳层而不是只偏向颗粒内部空位。
+- 文档补充“每步随机抽一个邻位 hop”“MC 后执行短 MD/relax”“紧凑输出”的推荐参数。
+
 ## v0.3.0 - 2026-06-23
 
 ### 新增

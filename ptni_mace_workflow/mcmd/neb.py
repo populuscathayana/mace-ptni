@@ -164,9 +164,9 @@ def _summary_payload(
         "max_force_eVA": max(forces) if forces else None,
         "endpoint_relax_mode": endpoint_relax_mode,
         "neb_dir": str(neb_dir),
-        "neb_initial_extxyz": str(neb_dir / "neb_initial.extxyz"),
-        "neb_final_extxyz": str(neb_dir / "neb_final.extxyz"),
-        "energy_profile_csv": str(neb_dir / "energy_profile.csv"),
+        "neb_initial_extxyz": str(neb_dir / "neb_initial.extxyz") if (neb_dir / "neb_initial.extxyz").is_file() else "",
+        "neb_final_extxyz": str(neb_dir / "neb_final.extxyz") if (neb_dir / "neb_final.extxyz").is_file() else "",
+        "energy_profile_csv": str(neb_dir / "energy_profile.csv") if (neb_dir / "energy_profile.csv").is_file() else "",
         "message": message,
         **event.to_row(),
     }
@@ -232,9 +232,10 @@ def run_event_neb(event: HopEvent, calc: Any, args: Any, neb_dir: Path) -> NebRe
         )
         endpoint_message = f"endpoint_relax_converged={is_conv}/{fs_conv}"
 
-    write((neb_dir / "neb_initial.extxyz").as_posix(), [is_atoms, fs_atoms], format="extxyz")
     images = build_images(is_atoms, fs_atoms, args.neb_images)
-    write((neb_dir / "neb_initial_path.extxyz").as_posix(), images, format="extxyz")
+    if args.neb_output == "full":
+        write((neb_dir / "neb_initial.extxyz").as_posix(), [is_atoms, fs_atoms], format="extxyz")
+        write((neb_dir / "neb_initial_path.extxyz").as_posix(), images, format="extxyz")
 
     attach_calc(images, calc)
     status = "ok"
@@ -245,8 +246,8 @@ def run_event_neb(event: HopEvent, calc: Any, args: Any, neb_dir: Path) -> NebRe
             neb,
             **_fire_kwargs(
                 neb,
-                neb_dir / "ase_neb.traj" if args.write_ase_trajectory else None,
-                neb_dir / "ase_neb.log" if args.write_ase_log else None,
+                neb_dir / "ase_neb.traj" if args.neb_output == "full" and args.write_ase_trajectory else None,
+                neb_dir / "ase_neb.log" if args.neb_output == "full" and args.write_ase_log else None,
                 args.neb_maxstep,
                 args.fire_downhill_check,
             ),
@@ -263,8 +264,10 @@ def run_event_neb(event: HopEvent, calc: Any, args: Any, neb_dir: Path) -> NebRe
     finally:
         detach_calc(images)
 
-    write((neb_dir / "neb_final.extxyz").as_posix(), images, format="extxyz")
-    _write_energy_profile(neb_dir / "energy_profile.csv", energies, forces)
+    if args.neb_output == "full":
+        write((neb_dir / "neb_final.extxyz").as_posix(), images, format="extxyz")
+    if args.neb_output in {"full", "compact"}:
+        _write_energy_profile(neb_dir / "energy_profile.csv", energies, forces)
     summary = _summary_payload(event, status, converged, energies, forces, neb_dir, message, args.endpoint_relax_mode)
     summary_path = neb_dir / "summary.json"
     write_json(summary_path, summary)
@@ -284,4 +287,3 @@ def run_event_neb(event: HopEvent, calc: Any, args: Any, neb_dir: Path) -> NebRe
         final_atoms=images[-1].copy() if images else event.final_atoms,
         message=message,
     )
-

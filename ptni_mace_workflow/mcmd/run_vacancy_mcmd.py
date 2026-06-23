@@ -72,6 +72,7 @@ STEP_FIELDS = [
     "accepted_energy_eV",
     "accepted_fmax_eVA",
     "candidate_event_count",
+    "total_candidate_event_count",
     "valid_rate_event_count",
     "vacancy_match_distance_A",
     "vacancy_matched_to_reconstructed_site",
@@ -106,8 +107,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--md-steps", type=int, default=0)
     parser.add_argument("--md-timestep-fs", type=float, default=1.0)
     parser.add_argument("--md-ensemble", choices=["langevin", "nve"], default="langevin")
+    parser.add_argument("--md-position", choices=["before", "after", "both", "none"], default="before")
     parser.add_argument("--md-friction-per-fs", type=float, default=0.01)
     parser.add_argument("--md-write-interval", type=int, default=25)
+    parser.add_argument("--write-md-frames", action="store_true", help="Write intermediate MD frames into trajectory.extxyz.")
 
     parser.add_argument("--neb-images", type=int, default=5)
     parser.add_argument("--neb-steps", type=int, default=100)
@@ -122,15 +125,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fire-downhill-check", action="store_true")
     parser.add_argument("--write-ase-trajectory", action="store_true")
     parser.add_argument("--write-ase-log", action="store_true")
+    parser.add_argument("--neb-output", choices=["full", "compact", "none"], default="full")
 
     parser.add_argument("--hop-shell-low", type=float, default=0.70)
     parser.add_argument("--hop-shell-high", type=float, default=1.30)
     parser.add_argument("--max-events-per-step", type=int, default=None)
+    parser.add_argument("--event-order", choices=["nearest", "random"], default="nearest")
     parser.add_argument("--allow-pbc-hop", action="store_true")
     parser.add_argument("--pbc-cross-tol", type=float, default=0.25)
     parser.add_argument("--pbc", choices=["from-input", "true", "false"], default="from-input")
     parser.add_argument("--wrap-scaled", action="store_true")
+    parser.add_argument(
+        "--allow-previous-vacancy-fallback",
+        action="store_true",
+        help="Continue with the previous vacancy Cartesian coordinate if no reconstructed site matches.",
+    )
 
+    parser.add_argument("--site-output", choices=["full", "vasp", "none"], default="full")
     parser.add_argument("--site-mode", choices=["auto", "np", "slab", "bulk"], default="auto")
     parser.add_argument("--site-nn-cutoff", type=float, default=3.2)
     parser.add_argument("--site-nn-low", type=float, default=0.82)
@@ -144,7 +155,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--site-cluster-tol", type=float, default=0.38)
     parser.add_argument("--site-merge-tol", type=float, default=0.80)
     parser.add_argument("--site-boundary-tol", type=float, default=0.35)
-    parser.add_argument("--site-np-boundary", choices=["strict-hull", "one-shell", "none"], default="strict-hull")
+    parser.add_argument(
+        "--site-np-boundary",
+        choices=["strict-hull", "one-shell", "none"],
+        default="one-shell",
+        help="NP site boundary policy. Default one-shell keeps the close-packed shell as well as internal vacancies.",
+    )
     parser.add_argument("--site-min-votes", type=int, default=2)
     return parser.parse_args()
 
@@ -278,9 +294,13 @@ def main() -> int:
             "mc_steps": args.mc_steps,
             "md_steps": args.md_steps,
             "md_timestep_fs": args.md_timestep_fs,
+            "md_position": args.md_position,
             "neb_images": args.neb_images,
             "neb_steps": args.neb_steps,
             "neb_fmax": args.neb_fmax,
+            "neb_output": args.neb_output,
+            "event_order": args.event_order,
+            "max_events_per_step": args.max_events_per_step,
             "endpoint_relax_mode": args.endpoint_relax_mode,
             "initial_energy_eV": initial_energy,
             "initial_fmax_eVA": initial_fmax,
@@ -297,20 +317,21 @@ def main() -> int:
     event_count = 0
 
     for step in range(args.mc_steps):
-        current_atoms = run_md_segment(
-            current_atoms,
-            calc,
-            step,
-            args.temperature,
-            args.md_steps,
-            args.md_timestep_fs,
-            args.md_ensemble,
-            args.md_friction_per_fs,
-            md_csv,
-            trajectory if args.md_steps > 0 else None,
-            args.md_write_interval,
-        )
-        current_atoms.calc = None
+        if args.md_position in {"before", "both"}:
+            current_atoms = run_md_segment(
+                current_atoms,
+                calc,
+                step,
+                args.temperature,
+                args.md_steps,
+                args.md_timestep_fs,
+                args.md_ensemble,
+                args.md_friction_per_fs,
+                md_csv,
+                trajectory if args.write_md_frames and args.md_steps > 0 else None,
+                args.md_write_interval,
+            )
+            current_atoms.calc = None
 
         reconstruction = reconstruct_sites_from_atoms(current_atoms, site_dir, f"step_{step:04d}", args)
         if step == 0 and current_vacancy is None:
@@ -319,15 +340,31 @@ def main() -> int:
             matched = True
         else:
             assert current_vacancy is not None
-            current_vacancy, match_distance, matched = match_vacancy_to_reconstructed_site(
+            matched_vacancy, match_distance, matched = match_vacancy_to_reconstructed_site(
                 current_vacancy.cartesian,
                 reconstruction,
                 args.vacancy_match_radius,
             )
-            vacancy_source = "matched_reconstructed_site" if matched else "previous_cartesian"
+            if not matched and not args.allow_previous_vacancy_fallback:
+                row = {
+                    "mcmd_step": step,
+                    "status": "stopped_vacancy_not_matched",
+                    "candidate_event_count": 0,
+                    "total_candidate_event_count": 0,
+                    "valid_rate_event_count": 0,
+                    "vacancy_match_distance_A": match_distance,
+                    "vacancy_matched_to_reconstructed_site": matched,
+                    "site_count": len(reconstruction.sites),
+                    "message": "current vacancy could not be matched to a reconstructed close-packed site",
+                }
+                append_csv_row(steps_csv, row, STEP_FIELDS)
+                step_rows.append(row)
+                break
+            current_vacancy = matched_vacancy
+            vacancy_source = "matched_reconstructed_site" if matched else "previous_cartesian_fallback"
 
         d_nn = float(reconstruction.summary.get("d_nn_estimate_A") or estimate_nn_from_atoms(current_atoms))
-        events = generate_hop_events(
+        all_events = generate_hop_events(
             current_atoms,
             current_vacancy,
             step,
@@ -336,13 +373,20 @@ def main() -> int:
             args.hop_shell_high,
             args.allow_pbc_hop,
             args.pbc_cross_tol,
-            args.max_events_per_step,
+            None,
         )
+        if args.event_order == "random" and all_events:
+            order = rng.permutation(len(all_events))
+            events = [all_events[int(index)] for index in order]
+        else:
+            events = list(all_events)
+        if args.max_events_per_step is not None:
+            events = events[: args.max_events_per_step]
 
         print(
             f"MC step {step}: sites={len(reconstruction.sites)} "
             f"vacancy=({current_vacancy.cartesian[0]:.4f}, {current_vacancy.cartesian[1]:.4f}, {current_vacancy.cartesian[2]:.4f}) "
-            f"source={vacancy_source} candidate_events={len(events)}",
+            f"source={vacancy_source} candidate_events={len(events)}/{len(all_events)}",
             flush=True,
         )
 
@@ -351,6 +395,7 @@ def main() -> int:
                 "mcmd_step": step,
                 "status": "stopped_no_events",
                 "candidate_event_count": 0,
+                "total_candidate_event_count": len(all_events),
                 "valid_rate_event_count": 0,
                 "vacancy_match_distance_A": match_distance,
                 "vacancy_matched_to_reconstructed_site": matched,
@@ -397,6 +442,7 @@ def main() -> int:
                 "mcmd_step": step,
                 "status": "stopped_no_valid_rates",
                 "candidate_event_count": len(events),
+                "total_candidate_event_count": len(all_events),
                 "valid_rate_event_count": int(np.count_nonzero(rates > 0.0)),
                 "vacancy_match_distance_A": match_distance,
                 "vacancy_matched_to_reconstructed_site": matched,
@@ -432,8 +478,25 @@ def main() -> int:
             score=None,
             raw={"source": "post_hop_atom_old_position", "selected_event_id": selected.event.event_id},
         )
+
+        if args.md_position in {"after", "both"}:
+            current_atoms = run_md_segment(
+                current_atoms,
+                calc,
+                step,
+                args.temperature,
+                args.md_steps,
+                args.md_timestep_fs,
+                args.md_ensemble,
+                args.md_friction_per_fs,
+                md_csv,
+                trajectory if args.write_md_frames and args.md_steps > 0 else None,
+                args.md_write_interval,
+            )
+            current_atoms.calc = None
+
         accepted_energy, accepted_fmax = evaluate_structure(current_atoms, calc)
-        write_state(trajectory, current_atoms, step + 1, "accepted_mc", accepted_energy, accepted_fmax)
+        write_state(trajectory, current_atoms, step + 1, "accepted_mc_post_md", accepted_energy, accepted_fmax)
 
         row = {
             "mcmd_step": step,
@@ -453,6 +516,7 @@ def main() -> int:
             "accepted_energy_eV": f"{accepted_energy:.12f}",
             "accepted_fmax_eVA": f"{accepted_fmax:.12f}",
             "candidate_event_count": len(events),
+            "total_candidate_event_count": len(all_events),
             "valid_rate_event_count": int(np.count_nonzero(rates > 0.0)),
             "vacancy_match_distance_A": match_distance,
             "vacancy_matched_to_reconstructed_site": matched,
@@ -487,4 +551,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

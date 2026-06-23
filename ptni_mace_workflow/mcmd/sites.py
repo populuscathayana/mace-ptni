@@ -40,9 +40,9 @@ class VacancySite:
 class SiteReconstruction:
     summary: dict[str, Any]
     sites: list[VacancySite]
-    structure_path: Path
-    summary_path: Path
-    he_poscar_path: Path
+    structure_path: Path | None
+    summary_path: Path | None
+    he_poscar_path: Path | None
 
 
 def _site_args(args: argparse.Namespace) -> argparse.Namespace:
@@ -67,6 +67,30 @@ def _site_args(args: argparse.Namespace) -> argparse.Namespace:
     )
 
 
+def _structure_data_from_atoms(atoms: Any, comment: str):
+    """Create reconstruct_close_packed_sites.StructureData without a POSCAR round trip."""
+
+    from collections import Counter
+
+    from ptni_mace_workflow.tools import reconstruct_close_packed_sites as rcps
+
+    symbols = atoms.get_chemical_symbols()
+    counts_by_symbol = Counter(symbols)
+    species: list[str] = []
+    for symbol in symbols:
+        if symbol not in species:
+            species.append(symbol)
+    counts = [counts_by_symbol[symbol] for symbol in species]
+    return rcps.StructureData(
+        comment=comment,
+        lattice=np.asarray(atoms.cell.array, dtype=float),
+        species=species,
+        counts=counts,
+        atom_species=symbols,
+        cart=np.asarray(atoms.get_positions(), dtype=float),
+    )
+
+
 def reconstruct_sites_from_atoms(
     atoms: Any,
     output_dir: Path,
@@ -79,10 +103,12 @@ def reconstruct_sites_from_atoms(
     from ptni_mace_workflow.tools import reconstruct_close_packed_sites as rcps
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    structure_path = output_dir / f"{prefix}_structure.vasp"
-    write(structure_path.as_posix(), atoms, format="vasp", direct=True, vasp5=True)
+    structure_path: Path | None = None
+    if args.site_output == "full":
+        structure_path = output_dir / f"{prefix}_structure.vasp"
+        write(structure_path.as_posix(), atoms, format="vasp", direct=True, vasp5=True)
 
-    data = rcps.parse_poscar(structure_path)
+    data = _structure_data_from_atoms(atoms, prefix)
     site_args = _site_args(args)
     mode, pbc, mode_info = rcps.detect_mode(data.cart, data.lattice, site_args.mode)
     site_args.detected_mode = mode
@@ -96,7 +122,7 @@ def reconstruct_sites_from_atoms(
     raw_sites, discarded = rcps.classify_sites(clusters, data, d_nn, pbc, inside, site_args)
 
     summary = {
-        "input": str(structure_path),
+        "input": str(structure_path) if structure_path is not None else f"ase_atoms:{prefix}",
         "mode": mode,
         "pbc_axes_xyz": pbc.tolist(),
         "real_atom_count": len(data.cart),
@@ -119,22 +145,27 @@ def reconstruct_sites_from_atoms(
     }
 
     base = output_dir / prefix
-    he_poscar_path = base.with_name(base.name + "_with_He.vasp")
-    he_xyz_path = base.with_name(base.name + "_with_He.xyz")
-    local_xyz_path = base.with_name(base.name + "_local_display.xyz")
-    summary_path = base.with_name(base.name + "_summary.json")
-    report_path = base.with_name(base.name + "_report.md")
+    he_poscar_path: Path | None = None
+    summary_path: Path | None = None
 
-    rcps.write_poscar(data, raw_sites, he_poscar_path)
-    rcps.write_xyz(data, raw_sites, he_xyz_path, local_only=False, display_radius=site_args.nn_cutoff)
-    rcps.write_xyz(data, raw_sites, local_xyz_path, local_only=True, display_radius=site_args.nn_cutoff)
-    import json
+    if args.site_output in {"full", "vasp"}:
+        he_poscar_path = base.with_name(base.name + "_with_He.vasp")
+        rcps.write_poscar(data, raw_sites, he_poscar_path)
 
-    summary_path.write_text(
-        json.dumps({"summary": summary, "sites": raw_sites}, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    rcps.write_report(summary, raw_sites, report_path)
+    if args.site_output == "full":
+        he_xyz_path = base.with_name(base.name + "_with_He.xyz")
+        local_xyz_path = base.with_name(base.name + "_local_display.xyz")
+        summary_path = base.with_name(base.name + "_summary.json")
+        report_path = base.with_name(base.name + "_report.md")
+        rcps.write_xyz(data, raw_sites, he_xyz_path, local_only=False, display_radius=site_args.nn_cutoff)
+        rcps.write_xyz(data, raw_sites, local_xyz_path, local_only=True, display_radius=site_args.nn_cutoff)
+        import json
+
+        summary_path.write_text(
+            json.dumps({"summary": summary, "sites": raw_sites}, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        rcps.write_report(summary, raw_sites, report_path)
 
     inv = np.linalg.inv(np.asarray(atoms.cell.array, dtype=float))
     sites = [
@@ -232,4 +263,3 @@ def match_vacancy_to_reconstructed_site(
         raw={"source": "previous_cartesian_match_failed", "nearest_site_distance_A": best_distance},
     )
     return fallback, best_distance, False
-
