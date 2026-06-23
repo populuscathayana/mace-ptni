@@ -67,6 +67,12 @@ DOCS = [
         "title": "Git 与 GitHub 维护教程",
         "subtitle": "面向新手的提交、版本号、tag、push 和 Pages 发布流程",
     },
+    {
+        "id": "mcmd",
+        "source": "ptni_mace_workflow/docs/08_MCMD框架.md",
+        "title": "MCMD 动力学雏形",
+        "subtitle": "vacancy-mediated hop、ASE+MACE MD、显式 CI-NEB 能垒和速率加权事件选择",
+    },
 ]
 
 

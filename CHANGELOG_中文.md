@@ -2,6 +2,20 @@
 
 本项目采用 SemVer 版本号。每次代码或文档工作流发生实质修改时，同步更新 `VERSION` 和本文件。
 
+## v0.3.0 - 2026-06-23
+
+### 新增
+
+- 新增 `ptni_mace_workflow/mcmd/` vacancy-mediated MCMD 原型模块。
+- MCMD 主入口支持显式 vacancy site、空位邻位 hop 事件生成、ASE+MACE MD、显式 ASE CI-NEB 能垒计算和 `nu * exp(-Ea/kBT)` 速率加权事件选择。
+- 新增 NEB event cache、`events.csv`、`mcmd_steps.csv`、`trajectory.extxyz`、`site_reports/` 和 `summary.md` 输出约定。
+- `mace_workspace/` 目录规范新增 `inputs/mcmd/` 和 `runs/mcmd/<run_name>/`。
+
+### 文档
+
+- 新增 `08_MCMD框架.md`，说明空位指定、hop 判据、CI-NEB 参数、MD 参数、输出和注意事项。
+- 更新总览、外推任务验证说明和网页文档索引。
+
 ## v0.2.0 - 2026-06-22
 
 ### 新增

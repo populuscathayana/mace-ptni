@@ -14,6 +14,7 @@ mace_workspace/
     pt111/
     strained_neb/
     np_structures/
+    mcmd/
   models/
     ft_best_loss/
     scratch_best_loss/
@@ -22,6 +23,7 @@ mace_workspace/
     training/<run_name>/
     evaluation/<model_tag>/<dataset>/
     benchmarks/<benchmark_name>/<model_tag>/
+    mcmd/<run_name>/
   reports/
     docs_site/
   tmp/
@@ -46,6 +48,7 @@ mace_workspace/
 | `pt111/` | Pt111 hex grid POSCAR 和 `hex_point_origin` |
 | `strained_neb/` | `POSCAR-is`、`POSCAR-ts`、`POSCAR-fs` |
 | `np_structures/` | 手动 NP 结构优化测试输入 |
+| `mcmd/` | vacancy-mediated MCMD 原型输入结构 |
 
 ## 模型
 
@@ -72,12 +75,14 @@ mace_workspace/models/<model_tag>/
 | 训练 | `runs/training/<run_name>/` |
 | 误差检验 | `runs/evaluation/<model_tag>/<dataset>/` |
 | 外推验证 | `runs/benchmarks/<benchmark_name>/<model_tag>/` |
+| 动力学雏形 | `runs/mcmd/<run_name>/` |
 
 每个入口脚本至少写一个 manifest：
 
 - 训练：`run_manifest.json`
 - 评估：`run_manifest.csv`
 - benchmark：`benchmark_suite_manifest.csv`
+- MCMD：`run_manifest.json`
 - 数据迁移：`datasets/manifests/migration_manifest.csv`
 
 ## 禁止的新行为

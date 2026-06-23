@@ -1,21 +1,22 @@
 # Git 提交 / 推送指令
 
-更新时间：2026-06-22
+更新时间：2026-06-23
 
 ## 当前状态
 
 本地仓库已经完成或即将完成：
 
 - 分支：`main`
-- 当前计划版本：`v0.2.0`
+- 当前计划版本：`v0.3.0`
 - `v0.1.0`：模块化 PtNi MACE workflow + GitHub Pages 基础部署
 - `v0.1.1`：新增 Git/GitHub 维护教程，并忽略旧 `outputs/` 本地备份
 - `v0.1.2`：扩展新增文件/小型数据上传教程和回档教程，清理本地可再生成缓存
 - `v0.1.3`：精简 Git/GitHub 维护教程，只保留日常提交和新增文件上传流程
 - `v0.1.4`：训练入口支持显式 `--epochs` 和 `--patience` 参数
 - `v0.2.0`：新增 PtNi slab 顶部可动原子距离稳定性 benchmark
+- `v0.3.0`：新增 vacancy-mediated MCMD 原型框架
 - 远端：`git@github.com:populuscathayana/mace-ptni.git`
-- 本地最新提交：`v0.2.0: add slab distance scan benchmark`
+- 本地最新提交目标：`v0.3.0: add vacancy-mediated MCMD prototype`
 
 当前 Codex 侧推送失败原因：
 
@@ -48,17 +49,29 @@ git log --oneline --decorate -3
 git remote -v
 ```
 
+本轮提交建议：
+
+```bash
+git status --short --branch
+python -m compileall -q ptni_mace_workflow
+python ptni_mace_workflow/tools/build_docs_site.py --out-dir _site
+git add VERSION CHANGELOG_中文.md GIT_SUBMIT_COMMANDS.md ptni_mace_workflow
+git status --short
+git commit -m "v0.3.0: add vacancy-mediated MCMD prototype"
+git tag -a v0.3.0 -m "v0.3.0: add vacancy-mediated MCMD prototype"
+```
+
 如果已经配置好认证，推送 main 和版本 tag：
 
 ```bash
 git push -u origin main
-git push origin v0.2.0
+git push origin v0.3.0
 ```
 
-如果 GitHub 提示 `v0.2.0` tag 已存在但指向不一致，再执行：
+如果 GitHub 提示 `v0.3.0` tag 已存在但指向不一致，再执行：
 
 ```bash
-git push -f origin v0.2.0
+git push -f origin v0.3.0
 ```
 
 ## 推荐方式：SSH 推送
@@ -117,7 +130,7 @@ Hi populuscathayana! You've successfully authenticated, but GitHub does not prov
 ```bash
 git remote set-url origin git@github.com:populuscathayana/mace-ptni.git
 git push -u origin main
-git push origin v0.2.0
+git push origin v0.3.0
 ```
 
 ## 备用方式：HTTPS + Personal Access Token
@@ -144,7 +157,7 @@ workflow
 ```bash
 git remote set-url origin https://github.com/populuscathayana/mace-ptni.git
 git push -u origin main
-git push origin v0.2.0
+git push origin v0.3.0
 ```
 
 如果你使用的是 fine-grained token，请给 `populuscathayana/mace-ptni` 仓库至少开启：
@@ -165,14 +178,14 @@ Actions 或 Workflows: Read and write
 gh auth login
 gh auth setup-git
 git push -u origin main
-git push origin v0.2.0
+git push origin v0.3.0
 ```
 
 ## 推送后检查
 
 ```bash
 git ls-remote --heads origin main
-git ls-remote --tags origin v0.2.0
+git ls-remote --tags origin v0.3.0
 ```
 
 远端 `main` 应指向本地最新提交或其后续提交。

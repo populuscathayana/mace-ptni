@@ -13,6 +13,7 @@ OUTCAR
   -> best-loss .model 导出
   -> train/valid/test 误差检验
   -> 晶格、NEB、Pt111 PES、距离稳定性、NP 外推 benchmark
+  -> vacancy-mediated MCMD 动力学雏形
 ```
 
 ## 四个模块
@@ -23,6 +24,7 @@ OUTCAR
 | 训练 | `ptni_mace_workflow/training/` | MACE fine-tune、scratch、训练监控、best checkpoint 转 `.model` |
 | 误差检验 | `ptni_mace_workflow/evaluation/` | 低显存预测、train/valid/test 打分、离群点、parity density 图 |
 | 外推验证 | `ptni_mace_workflow/benchmarks/` | Pt/Ni 晶格、应变 NEB、Pt111 势能面、slab 距离稳定性、NP 单点、NP relax+NEB |
+| 动力学雏形 | `ptni_mace_workflow/mcmd/` | vacancy-mediated hop、ASE+MACE MD、显式 CI-NEB 能垒和速率加权事件选择 |
 
 ## 统一运行根目录
 
@@ -84,6 +86,23 @@ bash ptni_mace_workflow/benchmarks/run_benchmark_suite.sh \
   --model-tag ft_best_loss \
   --suite lattice,strained_neb,pt111_pes,distance_scan,np_singlepoint,np_relax_neb \
   --device cuda
+```
+
+vacancy-mediated MCMD smoke：
+
+```bash
+python -m ptni_mace_workflow.mcmd.run_vacancy_mcmd \
+  --workspace mace_workspace \
+  --input mace_workspace/inputs/mcmd/POSCAR \
+  --model-tag ft_best_loss \
+  --run-name np_vacancy_mcmd_smoke \
+  --auto-vacancy highest-score \
+  --mc-steps 1 \
+  --md-steps 0 \
+  --neb-images 3 \
+  --neb-steps 1 \
+  --device cpu \
+  --overwrite
 ```
 
 构建网页说明：

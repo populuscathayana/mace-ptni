@@ -73,17 +73,23 @@ def ensure_workspace_layout(workspace: str | Path | None = None) -> Path:
         "inputs/pt111",
         "inputs/strained_neb",
         "inputs/np_structures",
+        "inputs/mcmd",
         "models/ft_best_loss",
         "models/scratch_best_loss",
         "models/ft_np_baseline",
         "runs/training",
         "runs/evaluation",
         "runs/benchmarks",
+        "runs/mcmd",
         "reports/docs_site",
         "tmp",
     ]:
         (root / rel).mkdir(parents=True, exist_ok=True)
     return root
+
+
+def mcmd_run_dir(run_name: str, workspace: str | Path | None = None) -> Path:
+    return workspace_root(workspace) / "runs" / "mcmd" / run_name
 
 
 def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
