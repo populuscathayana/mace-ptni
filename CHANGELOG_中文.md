@@ -2,6 +2,13 @@
 
 本项目采用 SemVer 版本号。每次代码或文档工作流发生实质修改时，同步更新 `VERSION` 和本文件。
 
+## v0.3.2 - 2026-06-24
+
+### 调整
+
+- MCMD 默认执行顺序改为完成 MC-NEB hop 后再运行 MD relaxation 段，即 `--md-position after`。
+- 文档明确 `--neb-steps` 是每个候选 hop 的 CI-NEB FIRE 最大优化步数，不是 MC 步数。
+
 ## v0.3.1 - 2026-06-23
 
 ### 调整

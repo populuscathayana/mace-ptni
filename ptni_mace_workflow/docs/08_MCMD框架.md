@@ -7,7 +7,7 @@
 3. 在 vacancy 第一近邻壳层中生成 atom-to-vacancy hop 候选。
 4. 对每个候选 hop 执行 ASE CI-NEB，得到显式过渡态能垒。
 5. 按 `nu * exp(-Ea/kBT)` 做速率加权事件选择。
-6. 可选在每个 MC 步之间插入 ASE+MACE MD。
+6. 默认在完成 MC-NEB hop 之后执行 ASE+MACE MD relaxation 段。
 
 ## 主入口
 
@@ -111,7 +111,7 @@ mace_workspace/runs/mcmd/<run_name>/neb_cache/<event_id>/
 | 参数 | 默认值 | 含义 |
 | --- | ---: | --- |
 | `--neb-images` | `5` | NEB 总 image 数，包含端点 |
-| `--neb-steps` | `100` | FIRE 最大步数 |
+| `--neb-steps` | `100` | 每个候选 hop 的 CI-NEB FIRE 最大优化步数，不是 MC step |
 | `--neb-fmax` | `0.05` | NEB 收敛力阈值，eV/A |
 | `--endpoint-relax-mode` | `none` | 默认不在每个 MC hop 前完全优化端点 |
 | `--attempt-frequency` | `1e13` | 速率前因子，s^-1 |
@@ -137,15 +137,20 @@ rate = nu * exp(-Ea_forward / kBT)
 
 | 参数 | 默认值 | 含义 |
 | --- | ---: | --- |
-| `--md-steps` | `0` | 每个 MC step 前执行多少步 MD |
+| `--md-steps` | `0` | 每个 MC step 对应的 MD relaxation 步数 |
+| `--md-position` | `after` | 默认在 MC-NEB hop 执行后做 MD relaxation |
 | `--md-ensemble` | `langevin` | `langevin` 或 `nve` |
 | `--md-timestep-fs` | `1.0` | MD 步长 |
 | `--md-friction-per-fs` | `0.01` | Langevin friction |
 
-若希望“每跑 1 步 MC 就 MD/relax 一下结构”，使用：
+默认推荐流程是：
 
-```bash
---md-position after --md-steps 20
+```text
+reconstruct close-packed sites
+  -> randomly choose one neighboring vacancy-mediated hop
+  -> run CI-NEB for this hop
+  -> execute the accepted hop
+  -> run MD relaxation
 ```
 
 LAMMPS 后端暂不实现。原因是不同机器上的 LAMMPS-MACE pair style、模型加载方式和单位制需要单独确认；当前原型先保证 ASE+MACE 可检查、可复现。

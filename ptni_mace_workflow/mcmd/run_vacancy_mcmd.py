@@ -107,7 +107,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--md-steps", type=int, default=0)
     parser.add_argument("--md-timestep-fs", type=float, default=1.0)
     parser.add_argument("--md-ensemble", choices=["langevin", "nve"], default="langevin")
-    parser.add_argument("--md-position", choices=["before", "after", "both", "none"], default="before")
+    parser.add_argument(
+        "--md-position",
+        choices=["before", "after", "both", "none"],
+        default="after",
+        help="Where to run the MD relaxation segment relative to the accepted MC-NEB hop. Default: after.",
+    )
     parser.add_argument("--md-friction-per-fs", type=float, default=0.01)
     parser.add_argument("--md-write-interval", type=int, default=25)
     parser.add_argument("--write-md-frames", action="store_true", help="Write intermediate MD frames into trajectory.extxyz.")
