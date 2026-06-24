@@ -102,7 +102,7 @@ python -m ptni_mace_workflow.mcmd.run_vacancy_mcmd \
   --overwrite
 ```
 
-检查 `site_reports/step_0000_with_He.vasp` 后，显式指定 vacancy 运行：
+检查 `site_reports/step_0000_with_He.vasp` 后，运行默认 atom-random 规则：
 
 ```bash
 python -m ptni_mace_workflow.mcmd.run_vacancy_mcmd \
@@ -110,7 +110,7 @@ python -m ptni_mace_workflow.mcmd.run_vacancy_mcmd \
   --input mace_workspace/inputs/mcmd/POSCAR \
   --model-tag ft_best_loss \
   --run-name np_vacancy_mcmd_smoke \
-  --vacancy-site-index 0 \
+  --selection-mode atom-random \
   --mc-steps 1 \
   --md-steps 0 \
   --neb-images 3 \

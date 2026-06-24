@@ -13,7 +13,7 @@ import numpy as np
 from ptni_mace_workflow.common.mace_model import reject_checkpoint, resolve_model
 from ptni_mace_workflow.common.paths import ensure_workspace_layout, mcmd_run_dir, run_manifest_base, write_json
 from ptni_mace_workflow.mcmd.cache import event_dir, load_event_summary
-from ptni_mace_workflow.mcmd.events import estimate_nn_from_atoms, generate_hop_events
+from ptni_mace_workflow.mcmd.events import estimate_nn_from_atoms, generate_atom_centric_hop_events, generate_hop_events
 from ptni_mace_workflow.mcmd.md import run_md_segment
 from ptni_mace_workflow.mcmd.neb import NebResult, max_force, neb_result_from_summary, run_event_neb
 from ptni_mace_workflow.mcmd.reports import append_csv_row, write_markdown_summary
@@ -32,9 +32,12 @@ EVENT_FIELDS = [
     "selection_probability",
     "rate_s^-1",
     "event_id",
+    "event_type",
     "atom_index0",
     "atom_index1",
     "atom_symbol",
+    "initial_coordination",
+    "final_coordination_at_target",
     "vacancy_site_index0",
     "vacancy_source_index",
     "hop_distance_A",
@@ -58,9 +61,12 @@ STEP_FIELDS = [
     "mcmd_step",
     "status",
     "selected_event_id",
+    "event_type",
     "atom_index0",
     "atom_index1",
     "atom_symbol",
+    "initial_coordination",
+    "final_coordination_at_target",
     "barrier_eV",
     "reverse_barrier_eV",
     "reaction_energy_eV",
@@ -74,6 +80,11 @@ STEP_FIELDS = [
     "candidate_event_count",
     "total_candidate_event_count",
     "valid_rate_event_count",
+    "selection_mode",
+    "mobile_atom_count",
+    "checked_mobile_atoms",
+    "mobile_atoms_without_legal_site",
+    "selected_atom_legal_site_count",
     "vacancy_match_distance_A",
     "vacancy_matched_to_reconstructed_site",
     "site_count",
@@ -138,6 +149,16 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--hop-shell-low", type=float, default=0.70)
     parser.add_argument("--hop-shell-high", type=float, default=1.30)
+    parser.add_argument(
+        "--selection-mode",
+        choices=["atom-random", "vacancy-tracked"],
+        default="atom-random",
+        help="Default atom-random: pick a random atom with coordination < --mobile-coordination-max, then one legal neighbor He site.",
+    )
+    parser.add_argument("--coordination-cutoff", type=float, default=1.30)
+    parser.add_argument("--mobile-coordination-max", type=int, default=12, help="Atoms with coordination < this value are mobile candidates.")
+    parser.add_argument("--ni-dissolve-initial-coordination-max", type=int, default=8, help="Ni with coordination <= this value can dissolve.")
+    parser.add_argument("--ni-dissolve-final-coordination-max", type=int, default=2, help="Ni target-site coordination <= this value triggers dissolution.")
     parser.add_argument("--max-events-per-step", type=int, default=None)
     parser.add_argument("--event-order", choices=["nearest", "random"], default="nearest")
     parser.add_argument("--allow-pbc-hop", action="store_true")
@@ -270,7 +291,11 @@ def main() -> int:
 
     atoms = apply_geometry_options(read_atoms(input_path, args.input_format), args)
 
-    needs_initial_vacancy = args.vacancy_site_index is None and args.vacancy_cartesian is None
+    needs_initial_vacancy = (
+        args.selection_mode == "vacancy-tracked"
+        and args.vacancy_site_index is None
+        and args.vacancy_cartesian is None
+    )
     if args.prepare_sites_only or needs_initial_vacancy:
         reconstruction = reconstruct_sites_from_atoms(atoms, site_dir, "step_0000", args)
         manifest = run_manifest_base("mcmd_site_prepare", args.run_name, workspace)
@@ -326,6 +351,11 @@ def main() -> int:
             "neb_steps": args.neb_steps,
             "neb_fmax": args.neb_fmax,
             "neb_output": args.neb_output,
+            "selection_mode": args.selection_mode,
+            "coordination_cutoff": args.coordination_cutoff,
+            "mobile_coordination_max": args.mobile_coordination_max,
+            "ni_dissolve_initial_coordination_max": args.ni_dissolve_initial_coordination_max,
+            "ni_dissolve_final_coordination_max": args.ni_dissolve_final_coordination_max,
             "event_order": args.event_order,
             "max_events_per_step": args.max_events_per_step,
             "endpoint_relax_mode": args.endpoint_relax_mode,
@@ -361,61 +391,103 @@ def main() -> int:
             current_atoms.calc = None
 
         reconstruction = reconstruct_sites_from_atoms(current_atoms, site_dir, f"step_{step:04d}", args)
-        if step == 0 and current_vacancy is None:
-            current_vacancy, vacancy_source = select_initial_vacancy(reconstruction, current_atoms, args)
-            match_distance = 0.0
-            matched = True
+        d_nn = float(reconstruction.summary.get("d_nn_estimate_A") or estimate_nn_from_atoms(current_atoms))
+
+        selection_info: dict[str, Any] = {
+            "selection_mode": args.selection_mode,
+            "mobile_atom_count": "",
+            "checked_mobile_atoms": "",
+            "mobile_atoms_without_legal_site": "",
+            "selected_atom_legal_site_count": "",
+        }
+        match_distance: float | str = ""
+        matched: bool | str = ""
+        vacancy_source = "atom_random_neighbor_site"
+
+        if args.selection_mode == "atom-random":
+            all_events, selection_info = generate_atom_centric_hop_events(
+                current_atoms,
+                reconstruction.sites,
+                step,
+                d_nn,
+                args.hop_shell_low,
+                args.hop_shell_high,
+                args.coordination_cutoff,
+                args.mobile_coordination_max,
+                args.ni_dissolve_initial_coordination_max,
+                args.ni_dissolve_final_coordination_max,
+                args.allow_pbc_hop,
+                args.pbc_cross_tol,
+                rng,
+            )
+            events = list(all_events)
+        else:
+            if step == 0 and current_vacancy is None:
+                current_vacancy, vacancy_source = select_initial_vacancy(reconstruction, current_atoms, args)
+                match_distance = 0.0
+                matched = True
+            else:
+                assert current_vacancy is not None
+                matched_vacancy, match_distance, matched = match_vacancy_to_reconstructed_site(
+                    current_vacancy.cartesian,
+                    reconstruction,
+                    args.vacancy_match_radius,
+                )
+                if not matched or matched_vacancy is None:
+                    row = {
+                        "mcmd_step": step,
+                        "status": "stopped_vacancy_not_matched",
+                        "candidate_event_count": 0,
+                        "total_candidate_event_count": 0,
+                        "valid_rate_event_count": 0,
+                        **selection_info,
+                        "vacancy_match_distance_A": match_distance,
+                        "vacancy_matched_to_reconstructed_site": matched,
+                        "site_count": len(reconstruction.sites),
+                        "message": "current vacancy could not be matched to a reconstructed close-packed site",
+                    }
+                    append_csv_row(steps_csv, row, STEP_FIELDS)
+                    step_rows.append(row)
+                    break
+                current_vacancy = matched_vacancy
+                vacancy_source = "matched_reconstructed_site"
+
+            all_events = generate_hop_events(
+                current_atoms,
+                current_vacancy,
+                step,
+                d_nn,
+                args.hop_shell_low,
+                args.hop_shell_high,
+                args.allow_pbc_hop,
+                args.pbc_cross_tol,
+                None,
+            )
+            if args.event_order == "random" and all_events:
+                order = rng.permutation(len(all_events))
+                events = [all_events[int(index)] for index in order]
+            else:
+                events = list(all_events)
+            if args.max_events_per_step is not None:
+                events = events[: args.max_events_per_step]
+
+        if args.selection_mode == "atom-random":
+            print(
+                f"MC step {step}: sites={len(reconstruction.sites)} "
+                f"selection=atom_random mobile_atoms={selection_info.get('mobile_atom_count', '')} "
+                f"checked_atoms={selection_info.get('checked_mobile_atoms', '')} "
+                f"legal_neighbor_He={selection_info.get('selected_atom_legal_site_count', '')} "
+                f"candidate_events={len(events)}/{len(all_events)}",
+                flush=True,
+            )
         else:
             assert current_vacancy is not None
-            matched_vacancy, match_distance, matched = match_vacancy_to_reconstructed_site(
-                current_vacancy.cartesian,
-                reconstruction,
-                args.vacancy_match_radius,
+            print(
+                f"MC step {step}: sites={len(reconstruction.sites)} "
+                f"vacancy=({current_vacancy.cartesian[0]:.4f}, {current_vacancy.cartesian[1]:.4f}, {current_vacancy.cartesian[2]:.4f}) "
+                f"source={vacancy_source} candidate_events={len(events)}/{len(all_events)}",
+                flush=True,
             )
-            if not matched or matched_vacancy is None:
-                row = {
-                    "mcmd_step": step,
-                    "status": "stopped_vacancy_not_matched",
-                    "candidate_event_count": 0,
-                    "total_candidate_event_count": 0,
-                    "valid_rate_event_count": 0,
-                    "vacancy_match_distance_A": match_distance,
-                    "vacancy_matched_to_reconstructed_site": matched,
-                    "site_count": len(reconstruction.sites),
-                    "message": "current vacancy could not be matched to a reconstructed close-packed site",
-                }
-                append_csv_row(steps_csv, row, STEP_FIELDS)
-                step_rows.append(row)
-                break
-            current_vacancy = matched_vacancy
-            vacancy_source = "matched_reconstructed_site"
-
-        d_nn = float(reconstruction.summary.get("d_nn_estimate_A") or estimate_nn_from_atoms(current_atoms))
-        all_events = generate_hop_events(
-            current_atoms,
-            current_vacancy,
-            step,
-            d_nn,
-            args.hop_shell_low,
-            args.hop_shell_high,
-            args.allow_pbc_hop,
-            args.pbc_cross_tol,
-            None,
-        )
-        if args.event_order == "random" and all_events:
-            order = rng.permutation(len(all_events))
-            events = [all_events[int(index)] for index in order]
-        else:
-            events = list(all_events)
-        if args.max_events_per_step is not None:
-            events = events[: args.max_events_per_step]
-
-        print(
-            f"MC step {step}: sites={len(reconstruction.sites)} "
-            f"vacancy=({current_vacancy.cartesian[0]:.4f}, {current_vacancy.cartesian[1]:.4f}, {current_vacancy.cartesian[2]:.4f}) "
-            f"source={vacancy_source} candidate_events={len(events)}/{len(all_events)}",
-            flush=True,
-        )
 
         if not events:
             row = {
@@ -424,6 +496,7 @@ def main() -> int:
                 "candidate_event_count": 0,
                 "total_candidate_event_count": len(all_events),
                 "valid_rate_event_count": 0,
+                **selection_info,
                 "vacancy_match_distance_A": match_distance,
                 "vacancy_matched_to_reconstructed_site": matched,
                 "site_count": len(reconstruction.sites),
@@ -471,6 +544,7 @@ def main() -> int:
                 "candidate_event_count": len(events),
                 "total_candidate_event_count": len(all_events),
                 "valid_rate_event_count": int(np.count_nonzero(rates > 0.0)),
+                **selection_info,
                 "vacancy_match_distance_A": match_distance,
                 "vacancy_matched_to_reconstructed_site": matched,
                 "site_count": len(reconstruction.sites),
@@ -496,15 +570,18 @@ def main() -> int:
         delta_time = 1.0 / total_rate if total_rate > 0 else float("inf")
         cumulative_time += delta_time
         current_atoms = selected.final_atoms.copy()
-        current_vacancy = VacancySite(
-            site_index0=-1,
-            source_index=-1,
-            cartesian=selected.event.new_vacancy_cartesian.copy(),
-            fractional=None,
-            coordination=None,
-            score=None,
-            raw={"source": "post_hop_atom_old_position", "selected_event_id": selected.event.event_id},
-        )
+        if selected.event.event_type == "dissolution":
+            del current_atoms[selected.event.atom_index]
+        if args.selection_mode == "vacancy-tracked":
+            current_vacancy = VacancySite(
+                site_index0=-1,
+                source_index=-1,
+                cartesian=selected.event.new_vacancy_cartesian.copy(),
+                fractional=None,
+                coordination=None,
+                score=None,
+                raw={"source": "post_hop_atom_old_position", "selected_event_id": selected.event.event_id},
+            )
 
         if args.md_position in {"after", "both"}:
             current_atoms = run_md_segment(
@@ -529,9 +606,12 @@ def main() -> int:
             "mcmd_step": step,
             "status": "accepted",
             "selected_event_id": selected.event.event_id,
+            "event_type": selected.event.event_type,
             "atom_index0": selected.event.atom_index,
             "atom_index1": selected.event.atom_index + 1,
             "atom_symbol": selected.event.atom_symbol,
+            "initial_coordination": selected.event.initial_coordination,
+            "final_coordination_at_target": selected.event.final_coordination,
             "barrier_eV": f"{selected.barrier_eV:.12f}",
             "reverse_barrier_eV": f"{selected.reverse_barrier_eV:.12f}",
             "reaction_energy_eV": f"{selected.reaction_energy_eV:.12f}",
@@ -545,6 +625,7 @@ def main() -> int:
             "candidate_event_count": len(events),
             "total_candidate_event_count": len(all_events),
             "valid_rate_event_count": int(np.count_nonzero(rates > 0.0)),
+            **selection_info,
             "vacancy_match_distance_A": match_distance,
             "vacancy_matched_to_reconstructed_site": matched,
             "site_count": len(reconstruction.sites),
@@ -553,7 +634,8 @@ def main() -> int:
         append_csv_row(steps_csv, row, STEP_FIELDS)
         step_rows.append(row)
         print(
-            f"  selected {selected.event.event_id}: "
+            f"  selected {selected.event.event_id}: type={selected.event.event_type} "
+            f"coord={selected.event.initial_coordination}->{selected.event.final_coordination} "
             f"Ea={selected.barrier_eV:.6f} eV "
             f"rate={rates[selected_index]:.4e} s^-1 "
             f"p={probabilities[selected_index]:.4f}",

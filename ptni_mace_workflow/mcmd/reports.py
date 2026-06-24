@@ -53,12 +53,13 @@ def write_markdown_summary(path: Path, manifest: dict[str, Any], step_rows: list
     if not step_rows:
         lines.append("No MC hop has been selected yet.")
     else:
-        lines.append("| step | selected event | atom | barrier eV | rate s^-1 | probability | status |")
-        lines.append("|---:|---|---|---:|---:|---:|---|")
+        lines.append("| step | type | selected event | atom | coord | barrier eV | rate s^-1 | probability | status |")
+        lines.append("|---:|---|---|---|---:|---:|---:|---:|---|")
         for row in step_rows:
             lines.append(
-                f"| {row.get('mcmd_step', '')} | `{row.get('selected_event_id', '')}` | "
+                f"| {row.get('mcmd_step', '')} | {row.get('event_type', '')} | `{row.get('selected_event_id', '')}` | "
                 f"{row.get('atom_symbol', '')}{row.get('atom_index1', '')} | "
+                f"{row.get('initial_coordination', '')}->{row.get('final_coordination_at_target', '')} | "
                 f"{row.get('barrier_eV', '')} | {row.get('selected_rate_s^-1', '')} | "
                 f"{row.get('selected_probability', '')} | {row.get('neb_status', '')} |"
             )
@@ -75,4 +76,3 @@ def write_markdown_summary(path: Path, manifest: dict[str, Any], step_rows: list
         ]
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-

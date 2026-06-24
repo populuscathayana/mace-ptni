@@ -7,7 +7,7 @@
 本地仓库已经完成或即将完成：
 
 - 分支：`main`
-- 当前计划版本：`v0.3.3`
+- 当前计划版本：`v0.3.4`
 - `v0.1.0`：模块化 PtNi MACE workflow + GitHub Pages 基础部署
 - `v0.1.1`：新增 Git/GitHub 维护教程，并忽略旧 `outputs/` 本地备份
 - `v0.1.2`：扩展新增文件/小型数据上传教程和回档教程，清理本地可再生成缓存
@@ -18,8 +18,9 @@
 - `v0.3.1`：MCMD 默认采用 close-packed shell 位点、单随机 hop smoke、MC 后短 MD 和紧凑输出
 - `v0.3.2`：MCMD 默认在 MC-NEB hop 后执行 MD relaxation，并明确 `NEB_STEPS` 含义
 - `v0.3.3`：删除初始 vacancy 自动选择和旧坐标 fallback，改为先生成 `step_0000_with_He.vasp` 再显式指定 vacancy
+- `v0.3.4`：新增 atom-random 低配位原子选择规则和 Ni dissolution 事件
 - 远端：`git@github.com:populuscathayana/mace-ptni.git`
-- 本地最新提交目标：`v0.3.3: require explicit MCMD vacancy selection`
+- 本地最新提交目标：`v0.3.4: add atom-random MCMD dissolution events`
 
 当前 Codex 侧推送失败原因：
 
@@ -60,8 +61,8 @@ python -m compileall -q ptni_mace_workflow
 python ptni_mace_workflow/tools/build_docs_site.py --out-dir _site
 git add VERSION CHANGELOG_中文.md GIT_SUBMIT_COMMANDS.md ptni_mace_workflow
 git status --short
-git commit -m "v0.3.3: require explicit MCMD vacancy selection"
-git tag -a v0.3.3 -m "v0.3.3: require explicit MCMD vacancy selection"
+git commit -m "v0.3.4: add atom-random MCMD dissolution events"
+git tag -a v0.3.4 -m "v0.3.4: add atom-random MCMD dissolution events"
 ```
 
 如果已经配置好认证，推送 main 和版本 tag：
@@ -72,12 +73,14 @@ git push origin v0.3.0
 git push origin v0.3.1
 git push origin v0.3.2
 git push origin v0.3.3
+git push origin v0.3.4
+git push origin v0.3.4
 ```
 
-如果 GitHub 提示 `v0.3.3` tag 已存在但指向不一致，再执行：
+如果 GitHub 提示 `v0.3.4` tag 已存在但指向不一致，再执行：
 
 ```bash
-git push -f origin v0.3.3
+git push -f origin v0.3.4
 ```
 
 ## 推荐方式：SSH 推送
@@ -140,6 +143,7 @@ git push origin v0.3.0
 git push origin v0.3.1
 git push origin v0.3.2
 git push origin v0.3.3
+git push origin v0.3.4
 ```
 
 ## 备用方式：HTTPS + Personal Access Token
@@ -170,6 +174,7 @@ git push origin v0.3.0
 git push origin v0.3.1
 git push origin v0.3.2
 git push origin v0.3.3
+git push origin v0.3.4
 ```
 
 如果你使用的是 fine-grained token，请给 `populuscathayana/mace-ptni` 仓库至少开启：
@@ -204,6 +209,7 @@ git ls-remote --tags origin v0.3.0
 git ls-remote --tags origin v0.3.1
 git ls-remote --tags origin v0.3.2
 git ls-remote --tags origin v0.3.3
+git ls-remote --tags origin v0.3.4
 ```
 
 远端 `main` 应指向本地最新提交或其后续提交。
