@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Run a vacancy-mediated MCMD prototype with explicit CI-NEB barriers."""
+"""Run a vacancy-mediated semi-rfKMC/MCMD prototype with CI-NEB barriers."""
 
 from __future__ import annotations
 
@@ -24,6 +24,13 @@ from ptni_mace_workflow.mcmd.sites import (
     select_initial_vacancy,
 )
 
+
+KINETIC_SCHEME = "semi-rfKMC"
+KINETIC_SCHEME_DESCRIPTION = (
+    "random under-coordinated atom proposal, explicit CI-NEB barriers for all legal "
+    "neighboring He/vacancy sites of that atom, and rate-weighted selection within "
+    "that local event set"
+)
 
 EVENT_FIELDS = [
     "mcmd_step",
@@ -153,7 +160,7 @@ def parse_args() -> argparse.Namespace:
         "--selection-mode",
         choices=["atom-random", "vacancy-tracked"],
         default="atom-random",
-        help="Default atom-random: pick a random atom with coordination < --mobile-coordination-max, then one legal neighbor He site.",
+        help="Default atom-random: pick a random atom with coordination < --mobile-coordination-max, then evaluate all legal neighbor He sites.",
     )
     parser.add_argument("--coordination-cutoff", type=float, default=1.30)
     parser.add_argument("--mobile-coordination-max", type=int, default=12, help="Atoms with coordination < this value are mobile candidates.")
@@ -298,21 +305,28 @@ def main() -> int:
     )
     if args.prepare_sites_only or needs_initial_vacancy:
         reconstruction = reconstruct_sites_from_atoms(atoms, site_dir, "step_0000", args)
+        site_prepare_status = "needs_vacancy_selection" if needs_initial_vacancy else "prepared_sites_only"
+        site_prepare_message = (
+            "Inspect step_0000_with_He.vasp, then rerun with --selection-mode atom-random "
+            "or use --selection-mode vacancy-tracked with --vacancy-site-index/--vacancy-cartesian."
+        )
         manifest = run_manifest_base("mcmd_site_prepare", args.run_name, workspace)
         manifest.update(
             {
                 "input": str(input_path),
-                "status": "needs_vacancy_selection",
+                "kinetic_scheme": KINETIC_SCHEME,
+                "kinetic_scheme_description": KINETIC_SCHEME_DESCRIPTION,
+                "status": site_prepare_status,
                 "site_count": len(reconstruction.sites),
                 "site_report_vasp": str(reconstruction.he_poscar_path or ""),
                 "site_summary_json": str(reconstruction.summary_path or ""),
-                "message": "Inspect step_0000_with_He.vasp and rerun with --vacancy-site-index or --vacancy-cartesian.",
+                "message": site_prepare_message,
             }
         )
         write_json(run_dir / "run_manifest.json", manifest)
         print(f"Prepared initial close-packed sites: {reconstruction.he_poscar_path}")
         print(f"Site count: {len(reconstruction.sites)}")
-        print("Rerun with --vacancy-site-index INDEX or --vacancy-cartesian X Y Z to start MCMD.")
+        print(site_prepare_message)
         if args.prepare_sites_only:
             return 0
         raise SystemExit("Initial vacancy is required; inspect step_0000_with_He.vasp and rerun with an explicit vacancy.")
@@ -337,6 +351,8 @@ def main() -> int:
     manifest.update(
         {
             "input": str(input_path),
+            "kinetic_scheme": KINETIC_SCHEME,
+            "kinetic_scheme_description": KINETIC_SCHEME_DESCRIPTION,
             "model": str(model),
             "model_tag": args.model_tag or "",
             "device": args.device,
@@ -365,6 +381,8 @@ def main() -> int:
         }
     )
     write_json(run_dir / "run_manifest.json", manifest)
+    print(f"Kinetic scheme: {KINETIC_SCHEME}")
+    print(KINETIC_SCHEME_DESCRIPTION)
 
     rng = np.random.default_rng(args.random_seed)
     current_atoms = atoms.copy()

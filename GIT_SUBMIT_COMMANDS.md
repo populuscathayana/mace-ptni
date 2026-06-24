@@ -1,13 +1,13 @@
 # Git 提交 / 推送指令
 
-更新时间：2026-06-23
+更新时间：2026-06-24
 
 ## 当前状态
 
 本地仓库已经完成或即将完成：
 
 - 分支：`main`
-- 当前计划版本：`v0.3.4`
+- 当前计划版本：`v0.3.5`
 - `v0.1.0`：模块化 PtNi MACE workflow + GitHub Pages 基础部署
 - `v0.1.1`：新增 Git/GitHub 维护教程，并忽略旧 `outputs/` 本地备份
 - `v0.1.2`：扩展新增文件/小型数据上传教程和回档教程，清理本地可再生成缓存
@@ -19,17 +19,18 @@
 - `v0.3.2`：MCMD 默认在 MC-NEB hop 后执行 MD relaxation，并明确 `NEB_STEPS` 含义
 - `v0.3.3`：删除初始 vacancy 自动选择和旧坐标 fallback，改为先生成 `step_0000_with_He.vasp` 再显式指定 vacancy
 - `v0.3.4`：新增 atom-random 低配位原子选择规则和 Ni dissolution 事件
+- `v0.3.5`：明确 semi-rfKMC，并改为随机低配位原子后对局部所有合法 He/vacancy 位点计算 NEB 再按速率选择
 - 远端：`git@github.com:populuscathayana/mace-ptni.git`
-- 本地最新提交目标：`v0.3.4: add atom-random MCMD dissolution events`
+- 本地最新提交目标：`v0.3.5: define semi-rfKMC local event selection`
 
 当前 Codex 侧推送失败原因：
 
 ```text
-Host key verification failed.
+git@github.com: Permission denied (publickey).
 fatal: Could not read from remote repository.
 ```
 
-这通常表示当前 shell 的 `~/.ssh/known_hosts` 里还没有 GitHub 的 host key。你可以在自己的 WSL/PowerShell 中先执行一次 `ssh -T git@github.com`，按提示输入 `yes` 信任 GitHub，然后再 push。
+这表示当前 Codex shell 没有可用于 GitHub 的 SSH 私钥。你自己的 WSL/PowerShell 已经能推送的话，直接使用下面的推送命令即可。
 
 ## 推荐推送命令
 
@@ -61,8 +62,8 @@ python -m compileall -q ptni_mace_workflow
 python ptni_mace_workflow/tools/build_docs_site.py --out-dir _site
 git add VERSION CHANGELOG_中文.md GIT_SUBMIT_COMMANDS.md ptni_mace_workflow
 git status --short
-git commit -m "v0.3.4: add atom-random MCMD dissolution events"
-git tag -a v0.3.4 -m "v0.3.4: add atom-random MCMD dissolution events"
+git commit -m "v0.3.5: define semi-rfKMC local event selection"
+git tag -a v0.3.5 -m "v0.3.5: define semi-rfKMC local event selection"
 ```
 
 如果已经配置好认证，推送 main 和版本 tag：
@@ -74,13 +75,13 @@ git push origin v0.3.1
 git push origin v0.3.2
 git push origin v0.3.3
 git push origin v0.3.4
-git push origin v0.3.4
+git push origin v0.3.5
 ```
 
-如果 GitHub 提示 `v0.3.4` tag 已存在但指向不一致，再执行：
+如果 GitHub 提示 `v0.3.5` tag 已存在但指向不一致，再执行：
 
 ```bash
-git push -f origin v0.3.4
+git push -f origin v0.3.5
 ```
 
 ## 推荐方式：SSH 推送
@@ -144,6 +145,7 @@ git push origin v0.3.1
 git push origin v0.3.2
 git push origin v0.3.3
 git push origin v0.3.4
+git push origin v0.3.5
 ```
 
 ## 备用方式：HTTPS + Personal Access Token
@@ -175,6 +177,7 @@ git push origin v0.3.1
 git push origin v0.3.2
 git push origin v0.3.3
 git push origin v0.3.4
+git push origin v0.3.5
 ```
 
 如果你使用的是 fine-grained token，请给 `populuscathayana/mace-ptni` 仓库至少开启：
@@ -199,6 +202,8 @@ git push origin v0.3.0
 git push origin v0.3.1
 git push origin v0.3.2
 git push origin v0.3.3
+git push origin v0.3.4
+git push origin v0.3.5
 ```
 
 ## 推送后检查
@@ -210,6 +215,7 @@ git ls-remote --tags origin v0.3.1
 git ls-remote --tags origin v0.3.2
 git ls-remote --tags origin v0.3.3
 git ls-remote --tags origin v0.3.4
+git ls-remote --tags origin v0.3.5
 ```
 
 远端 `main` 应指向本地最新提交或其后续提交。

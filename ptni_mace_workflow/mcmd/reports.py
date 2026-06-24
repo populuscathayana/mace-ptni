@@ -20,9 +20,11 @@ def append_csv_row(path: Path, row: dict[str, Any], fieldnames: list[str]) -> No
 
 def write_markdown_summary(path: Path, manifest: dict[str, Any], step_rows: list[dict[str, Any]], event_count: int) -> None:
     lines = [
-        "# Vacancy-Mediated MCMD Run",
+        "# Vacancy-Mediated semi-rfKMC / MCMD Run",
         "",
-        "This is an early MCMD prototype. MD is handled by ASE+MACE, MC hop events are vacancy-mediated nearest-neighbor moves, and event barriers are computed with explicit ASE CI-NEB.",
+        "This is an early semi-rfKMC / MCMD prototype. MD is handled by ASE+MACE, MC hop events are vacancy-mediated nearest-neighbor moves, and event barriers are computed with explicit ASE CI-NEB.",
+        "",
+        "`semi-rfKMC` here means a random under-coordinated atom proposal followed by explicit barrier evaluation for all legal neighboring He/vacancy sites of that atom. Probabilities are rate weights within this local event set, not a full-system KMC catalogue.",
         "",
         "## Run",
         "",
@@ -31,6 +33,7 @@ def write_markdown_summary(path: Path, manifest: dict[str, Any], step_rows: list
         f"- Input: `{manifest.get('input', '')}`",
         f"- Model: `{manifest.get('model', '')}`",
         f"- Device: `{manifest.get('device', '')}`",
+        f"- Kinetic scheme: `{manifest.get('kinetic_scheme', 'semi-rfKMC')}`",
         f"- Temperature: {manifest.get('temperature_K', '')} K",
         f"- MC steps requested: {manifest.get('mc_steps', '')}",
         f"- MD steps per MC step: {manifest.get('md_steps', '')}",
@@ -73,6 +76,8 @@ def write_markdown_summary(path: Path, manifest: dict[str, Any], step_rows: list
             "- `vacancy-site-index` is zero-based in the MCMD CLI, while the close-packed site report keeps its original one-based `source_index`.",
             "- By default, hop events that appear to cross a periodic boundary are skipped; use `--allow-pbc-hop` only after inspecting interpolation behavior.",
             "- CI-NEB climbing images use projected NEB forces, not zero force on the highest-energy image.",
+            "- `selected_probability` can be below 1 when several legal local He/vacancy events have valid NEB rates; it is 1 only when one event remains in the local rate set.",
+            "- For quantitative diffusion coefficients, upgrade to a full rfKMC/KMC mode that evaluates the complete full-system competing event catalogue at every step.",
         ]
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")

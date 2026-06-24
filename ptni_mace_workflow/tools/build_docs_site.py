@@ -70,8 +70,8 @@ DOCS = [
     {
         "id": "mcmd",
         "source": "ptni_mace_workflow/docs/08_MCMD框架.md",
-        "title": "MCMD 动力学雏形",
-        "subtitle": "vacancy-mediated hop、ASE+MACE MD、显式 CI-NEB 能垒和速率加权事件选择",
+        "title": "semi-rfKMC / MCMD 动力学雏形",
+        "subtitle": "随机低配位原子、局部全 He 候选 CI-NEB 和速率概率选择",
     },
 ]
 

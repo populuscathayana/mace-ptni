@@ -261,7 +261,7 @@ def generate_atom_centric_hop_events(
     pbc_cross_tol_A: float,
     rng: np.random.Generator,
 ) -> tuple[list[HopEvent], dict[str, Any]]:
-    """Pick one random under-coordinated atom, then one legal neighboring site."""
+    """Pick one random under-coordinated atom, then return all legal neighboring sites."""
 
     positions = np.asarray(atoms.get_positions(), dtype=float)
     cell = np.asarray(atoms.cell.array, dtype=float)
@@ -306,29 +306,39 @@ def generate_atom_centric_hop_events(
             rejected_without_sites += 1
             continue
 
-        chosen_index = int(rng.integers(0, len(legal)))
-        site, final_pos, direct_distance, mic_distance, crosses_pbc, final_coord, event_type = legal[chosen_index]
         symbol = atoms[atom_index].symbol
-        final_atoms = build_final_atoms_for_hop(atoms, atom_index, final_pos)
-        event = HopEvent(
-            event_id=_event_id(step, atom_index, symbol, old_pos, np.asarray(site.cartesian, dtype=float), cell, event_type),
-            event_type=event_type,
-            atom_index=atom_index,
-            atom_symbol=symbol,
-            vacancy=site,
-            initial_coordination=int(coord[atom_index]),
-            final_coordination=final_coord,
-            atom_initial_cartesian=old_pos.copy(),
-            atom_final_cartesian=final_pos.copy(),
-            new_vacancy_cartesian=old_pos.copy(),
-            hop_distance_A=mic_distance,
-            direct_distance_A=direct_distance,
-            mic_distance_A=mic_distance,
-            crosses_pbc=crosses_pbc,
-            d_nn_A=d_nn_A,
-            initial_atoms=atoms.copy(),
-            final_atoms=final_atoms,
-        )
+        events: list[HopEvent] = []
+        for site, final_pos, direct_distance, mic_distance, crosses_pbc, final_coord, event_type in legal:
+            final_atoms = build_final_atoms_for_hop(atoms, atom_index, final_pos)
+            events.append(
+                HopEvent(
+                    event_id=_event_id(
+                        step,
+                        atom_index,
+                        symbol,
+                        old_pos,
+                        np.asarray(site.cartesian, dtype=float),
+                        cell,
+                        event_type,
+                    ),
+                    event_type=event_type,
+                    atom_index=atom_index,
+                    atom_symbol=symbol,
+                    vacancy=site,
+                    initial_coordination=int(coord[atom_index]),
+                    final_coordination=final_coord,
+                    atom_initial_cartesian=old_pos.copy(),
+                    atom_final_cartesian=final_pos.copy(),
+                    new_vacancy_cartesian=old_pos.copy(),
+                    hop_distance_A=mic_distance,
+                    direct_distance_A=direct_distance,
+                    mic_distance_A=mic_distance,
+                    crosses_pbc=crosses_pbc,
+                    d_nn_A=d_nn_A,
+                    initial_atoms=atoms.copy(),
+                    final_atoms=final_atoms,
+                )
+            )
         diagnostics = {
             "selection_mode": "atom_random",
             "mobile_atom_count": len(mobile_indices),
@@ -336,9 +346,9 @@ def generate_atom_centric_hop_events(
             "mobile_atoms_without_legal_site": rejected_without_sites,
             "selected_atom_legal_site_count": len(legal),
             "selected_atom_coordination": int(coord[atom_index]),
-            "selected_atom_final_coordination": final_coord,
+            "selected_atom_final_coordination": ",".join(str(item[5]) for item in legal),
         }
-        return [event], diagnostics
+        return events, diagnostics
 
     return [], {
         "selection_mode": "atom_random",

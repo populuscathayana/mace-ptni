@@ -2,6 +2,16 @@
 
 本项目采用 SemVer 版本号。每次代码或文档工作流发生实质修改时，同步更新 `VERSION` 和本文件。
 
+## v0.3.5 - 2026-06-24
+
+### 调整
+
+- 将当前 vacancy-mediated MCMD 方法明确命名为 `semi-rfKMC`：随机低配位原子试探 + 局部合法 He/vacancy 位点全枚举 + 显式 CI-NEB 势垒 + 局部 Arrhenius 速率选择。
+- `run_manifest.json` 新增 `kinetic_scheme` 和 `kinetic_scheme_description`，运行开始时打印当前动力学方案。
+- 修正默认 `atom-random` semi-rfKMC：先随机选一个低配位原子，再对该原子周围所有合法 He/vacancy 位点都计算 CI-NEB，并按局部 Arrhenius 速率概率选择事件。
+- 更新 `summary.md`、中文说明文档和网页索引，明确 `p` 是局部候选事件集合内的速率权重，不代表完整 rfKMC 的全体系事件竞争。
+- 修正 `--prepare-sites-only` 提示，使其同时适配默认 `atom-random` semi-rfKMC 和旧 `vacancy-tracked` 兼容模式。
+
 ## v0.3.4 - 2026-06-24
 
 ### 新增

@@ -1,2 +1,1 @@
-"""Vacancy-mediated MCMD prototype tools for the PtNi MACE workflow."""
-
+"""Vacancy-mediated semi-rfKMC / MCMD prototype tools for PtNi MACE."""

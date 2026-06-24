@@ -13,7 +13,7 @@ OUTCAR
   -> best-loss .model 导出
   -> train/valid/test 误差检验
   -> 晶格、NEB、Pt111 PES、距离稳定性、NP 外推 benchmark
-  -> vacancy-mediated MCMD 动力学雏形
+  -> vacancy-mediated semi-rfKMC / MCMD 动力学雏形
 ```
 
 ## 四个模块
@@ -24,7 +24,7 @@ OUTCAR
 | 训练 | `ptni_mace_workflow/training/` | MACE fine-tune、scratch、训练监控、best checkpoint 转 `.model` |
 | 误差检验 | `ptni_mace_workflow/evaluation/` | 低显存预测、train/valid/test 打分、离群点、parity density 图 |
 | 外推验证 | `ptni_mace_workflow/benchmarks/` | Pt/Ni 晶格、应变 NEB、Pt111 势能面、slab 距离稳定性、NP 单点、NP relax+NEB |
-| 动力学雏形 | `ptni_mace_workflow/mcmd/` | vacancy-mediated hop、ASE+MACE MD、显式 CI-NEB 能垒和速率加权事件选择 |
+| 动力学雏形 | `ptni_mace_workflow/mcmd/` | vacancy-mediated semi-rfKMC、ASE+MACE MD、局部全 He 候选 CI-NEB 和速率概率选择 |
 
 ## 统一运行根目录
 
@@ -88,7 +88,7 @@ bash ptni_mace_workflow/benchmarks/run_benchmark_suite.sh \
   --device cuda
 ```
 
-vacancy-mediated MCMD 初始位点准备：
+vacancy-mediated semi-rfKMC / MCMD 初始位点准备：
 
 ```bash
 python -m ptni_mace_workflow.mcmd.run_vacancy_mcmd \
@@ -102,7 +102,7 @@ python -m ptni_mace_workflow.mcmd.run_vacancy_mcmd \
   --overwrite
 ```
 
-检查 `site_reports/step_0000_with_He.vasp` 后，运行默认 atom-random 规则：
+检查 `site_reports/step_0000_with_He.vasp` 后，运行默认 atom-random semi-rfKMC 规则：
 
 ```bash
 python -m ptni_mace_workflow.mcmd.run_vacancy_mcmd \
